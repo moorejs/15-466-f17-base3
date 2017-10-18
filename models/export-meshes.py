@@ -65,6 +65,10 @@ bpy.ops.wm.open_mainfile(filepath=infile)
 #names of objects whose meshes to write (not actually the names of the meshes):
 to_write = []
 for obj in bpy.data.objects:
+	if obj.layers[0] == False:
+		print("Skipping " + obj.name + " as it is not on first layer")
+		continue
+
 	if obj.type == 'MESH':
 		to_write.append(obj.name)
 

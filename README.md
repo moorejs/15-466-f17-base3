@@ -1,3 +1,5 @@
+Temp human model in scene is from http://wiki.polycount.com/wiki/BaseMesh
+
 NOTE: please fill in the first section with information about your game.
 
 # *Game Title*
