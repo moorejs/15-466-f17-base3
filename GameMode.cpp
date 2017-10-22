@@ -9,19 +9,6 @@
 #include <fstream>
 #include <algorithm>
 
-#include <cstdio>
-#include <cstdlib>
-#include <unistd.h>
-#include <cerrno>
-#include <cstring>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-
-#define PORT "3490"
-
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
 
 // Attrib locations in game_program:
@@ -34,7 +21,7 @@ GLint game_program_mv = -1;
 GLint game_program_itmv = -1;
 GLint game_program_roughness = -1;
 
-// Menu program itself:
+// Game program itself:
 Load<GLProgram> game_program(LoadTagInit, []() {
 	GLProgram* ret = new GLProgram(
 			"#version 330\n"
@@ -98,75 +85,7 @@ Load<GLVertexArray> binding(LoadTagDefault, []() {
 
 //------------------------------
 
-// get sockaddr, IPv4 or IPv6:
-void* get_in_addr(struct sockaddr* sa) {
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 GameMode::GameMode() {
-	// Basic client code structure from http://beej.us/guide/bgnet/output/html/multipage/clientserver.html#simpleclient
-
-	// TODO: this constructor must be called earlier than expected, the client connects immediately
-
-	int sockfd;	//, numbytes;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	if ((rv = getaddrinfo("::1", PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		// TODO: what now?
-		return;
-	}
-
-	// loop through all the results and connect to the first we can
-	for (p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-			perror("client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "client: failed to connect\n");
-		// TODO: what now?
-		return;
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr*)p->ai_addr), s, sizeof s);
-	printf("client: connecting to %s\n", s);
-
-	freeaddrinfo(servinfo);	// all done with this structure
-
-	/*
-	if ((numbytes = recv(sockfd, buf,  - 1, 0)) == -1) {
-		perror("recv");
-		exit(1);
-	}
-
-	buf[numbytes] = '\0';
-
-	printf("client: received '%s'\n", buf);
-	*/
-
-	close(sockfd);
-
 	auto add_object = [&](std::string const& name, glm::vec3 const& position, glm::quat const& rotation,
 												glm::vec3 const& scale) {
 		scene.objects.emplace_back();
@@ -216,14 +135,27 @@ GameMode::GameMode() {
 			}
 		}
 	}
-
-	// set up for first round:
-	reset();
 }
 
 void GameMode::reset() {}
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
+	if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+		Packet* input = new Packet();
+
+		input->payload.push_back(MessageType::INPUT);
+		input->payload.push_back(e.type == SDL_KEYUP ? 1 : 0);
+
+		// assume these can fit in a byte each
+		input->payload.push_back(e.key.keysym.sym);
+		input->payload.push_back(e.key.keysym.scancode);
+
+		input->header = input->payload.size();
+
+		sock->writeQueue.enqueue(input);
+	}
+
+
 	if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
 		if (show_menu)
 			show_menu();
@@ -233,8 +165,24 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 }
 
 void GameMode::update(float elapsed) {
-	static Uint8 const* keys = SDL_GetKeyboardState(NULL);
+	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
+
+	Packet* out;
+	while (sock->readQueue.try_dequeue(out)) {
+		if (!out) {
+			std::cout << "Bad packet from server" << std::endl;
+			continue;
+		}
+
+		std::cout << "Message from server: ";
+		for (const auto& thing : out->payload) {
+			printf("%x ", thing);
+		}
+		std::cout << std::endl;
+
+		delete out;
+	}
 }
 
 void GameMode::draw(glm::uvec2 const& drawable_size) {

@@ -1,5 +1,6 @@
 #include "MenuMode.hpp"
 #include "GameMode.hpp"
+#include "StagingMode.hpp"
 
 #include "GL.hpp"
 #include "Load.hpp"
@@ -16,8 +17,8 @@
 #include <fstream>
 #include <memory>
 
-int main(int argc, char **argv) {
-	//Configuration:
+int main(int argc, char** argv) {
+	// Configuration:
 	struct {
 		std::string title = "Pool Dozer";
 		glm::uvec2 size = glm::uvec2(640, 400);
@@ -25,10 +26,10 @@ int main(int argc, char **argv) {
 
 	//------------  initialization ------------
 
-	//Initialize SDL library:
+	// Initialize SDL library:
 	SDL_Init(SDL_INIT_VIDEO);
 
-	//Ask for an OpenGL context version 3.3, core profile, enable debug:
+	// Ask for an OpenGL context version 3.3, core profile, enable debug:
 	SDL_GL_ResetAttributes();
 	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
 	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
@@ -42,22 +43,19 @@ int main(int argc, char **argv) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
-	//create window:
-	SDL_Window *window = SDL_CreateWindow(
-		config.title.c_str(),
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		config.size.x, config.size.y,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
-	);
+	// create window:
+	SDL_Window* window =
+			SDL_CreateWindow(config.title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config.size.x,
+											 config.size.y, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-	SDL_SetWindowMinimumSize(window, 100, 100); //prevent exceedingly tiny windows when resizing
+	SDL_SetWindowMinimumSize(window, 100, 100);	// prevent exceedingly tiny windows when resizing
 
 	if (!window) {
 		std::cerr << "Error creating SDL window: " << SDL_GetError() << std::endl;
 		return 1;
 	}
 
-	//Create OpenGL context:
+	// Create OpenGL context:
 	SDL_GLContext context = SDL_GL_CreateContext(window);
 
 	if (!context) {
@@ -66,15 +64,15 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	#ifdef _WIN32
-	//On windows, load OpenGL extensions:
+#ifdef _WIN32
+	// On windows, load OpenGL extensions:
 	if (!init_gl_shims()) {
 		std::cerr << "ERROR: failed to initialize shims." << std::endl;
 		return 1;
 	}
-	#endif
+#endif
 
-	//Set VSYNC + Late Swap (prevents crazy FPS):
+	// Set VSYNC + Late Swap (prevents crazy FPS):
 	if (SDL_GL_SetSwapInterval(-1) != 0) {
 		std::cerr << "NOTE: couldn't set vsync + late swap tearing (" << SDL_GetError() << ")." << std::endl;
 		if (SDL_GL_SetSwapInterval(1) != 0) {
@@ -82,59 +80,66 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	//Hide mouse cursor (note: showing can be useful for debugging):
-	//SDL_ShowCursor(SDL_DISABLE);
+	// Hide mouse cursor (note: showing can be useful for debugging):
+	// SDL_ShowCursor(SDL_DISABLE);
 
 	//------------ load all assets -----------
 	call_load_functions();
+	// TODO: probably don't want to load everything at the start.
 
 	//------------ set up modes -----------
-	std::shared_ptr< GameMode > game = std::make_shared< GameMode >();
-	std::shared_ptr< MenuMode > menu = std::make_shared< MenuMode >();
+	std::shared_ptr<GameMode> game = std::make_shared<GameMode>();
+	std::shared_ptr<StagingMode> staging = std::make_shared<StagingMode>();
+	std::shared_ptr<MenuMode> menu = std::make_shared<MenuMode>();
 
-	menu->choices.emplace_back("POOL DOZER");
-	menu->choices.emplace_back("PLAY", [&](MenuMode::Choice &){
-		game->reset();
-		Mode::set_current(game);
+	menu->choices.emplace_back("ODD ONE OUT");
+	menu->choices.emplace_back("PLAY LOCAL", [&](MenuMode::Choice&) {
+		staging->reset();
+		Mode::set_current(staging);
 	});
-	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice &){
-		Mode::set_current(nullptr);
-	});
+	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice&) { Mode::set_current(nullptr); });
 	menu->selected = 1;
 
-	game->show_menu = [&](){
-		menu->choices[0].label = "POOL DOZER";
-		menu->choices[1].label = "PLAY";
+	staging->enterGame = [&]() {
+		game->reset();
+		Mode::set_current(game);
+	};
+
+	game->show_menu = [&]() {
+		menu->choices[0].label = "ODD ONE OUT";
+		menu->choices[1].label = "PLAY LOCAL";
 		menu->selected = 2;
 		Mode::set_current(menu);
 	};
-	game->diamonds_wins = [&](){
+	game->diamonds_wins = [&]() {
 		menu->choices[0].label = "DIAMONDS WINS";
 		menu->choices[1].label = "PLAY AGAIN";
 		menu->selected = 1;
 		Mode::set_current(menu);
 	};
-	game->solids_wins = [&](){
+	game->solids_wins = [&]() {
 		menu->choices[0].label = "SOLIDS WINS";
 		menu->choices[1].label = "PLAY AGAIN";
 		menu->selected = 1;
 		Mode::set_current(menu);
 	};
-	game->everyone_loses = [&](){
+	game->everyone_loses = [&]() {
 		menu->choices[0].label = "EVERYONE LOSES";
 		menu->choices[1].label = "PLAY AGAIN";
 		menu->selected = 1;
 		Mode::set_current(menu);
 	};
 
-
-	Mode::set_current(menu);
+	std::cout << "Game may crash here" << std::endl;
+	staging->reset();
+	std::cout << "Nope it survived" << std::endl;
+	Mode::set_current(staging);
 
 	//------------ game loop ------------
 
 	glm::uvec2 window_size, drawable_size;
-	auto on_resize = [&](){
-		int w,h;
+	auto on_resize = [&]() {
+		int w, h;
 		SDL_GetWindowSize(window, &w, &h);
 		window_size = glm::uvec2(w, h);
 		SDL_GL_GetDrawableSize(window, &w, &h);
@@ -146,11 +151,11 @@ int main(int argc, char **argv) {
 	while (Mode::current) {
 		static SDL_Event evt;
 		while (SDL_PollEvent(&evt) == 1) {
-			//handle resizing:
+			// handle resizing:
 			if (evt.type == SDL_WINDOWEVENT && evt.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 				on_resize();
 			}
-			//handle input:
+			// handle input:
 			if (Mode::current && Mode::current->handle_event(evt, window_size)) {
 				// mode handled it; great
 			} else if (evt.type == SDL_QUIT) {
@@ -158,17 +163,19 @@ int main(int argc, char **argv) {
 				break;
 			}
 		}
-		if (!Mode::current) break;
+		if (!Mode::current)
+			break;
 
 		auto current_time = std::chrono::high_resolution_clock::now();
 		static auto previous_time = current_time;
-		float elapsed = std::chrono::duration< float >(current_time - previous_time).count();
+		float elapsed = std::chrono::duration<float>(current_time - previous_time).count();
 		previous_time = current_time;
 
 		Mode::current->update(elapsed);
-		if (!Mode::current) break;
+		if (!Mode::current)
+			break;
 
-		//draw output:
+		// draw output:
 		glClearColor(0.5, 0.5, 0.5, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
@@ -179,7 +186,6 @@ int main(int argc, char **argv) {
 
 		SDL_GL_SwapWindow(window);
 	}
-
 
 	//------------  teardown ------------
 

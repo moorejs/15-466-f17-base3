@@ -3,6 +3,7 @@
 #include "Mode.hpp"
 
 #include "Scene.hpp"
+#include "Socket.hpp"
 
 #include <functional>
 
@@ -38,4 +39,6 @@ struct GameMode : public Mode {
 	std::function<void()> diamonds_wins;
 	std::function<void()> solids_wins;
 	std::function<void()> everyone_loses;
+
+	Socket* sock;
 };
