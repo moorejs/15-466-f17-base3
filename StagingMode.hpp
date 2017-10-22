@@ -15,7 +15,8 @@ struct StagingMode : public Mode {
 
 	Socket* sock;
 
-	// function to call when 'ESC' is pressed:
-	std::function<void()> enterGame;
+	bool starting;
+
+	std::function<void(Socket*)> enterGame;
 	std::function<void()> show_menu;
 };

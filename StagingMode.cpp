@@ -85,13 +85,14 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 	}
 
 	if (event.type == SDL_MOUSEBUTTONDOWN) {
-		Packet* input = new Packet();
+		Packet* out;
+		if (starting) {
+			out = SimpleMessage::pack(MessageType::STAGING_VETO_START);
+		} else {
+			out = SimpleMessage::pack(MessageType::STAGING_VOTE_TO_START);
+		}
 
-		input->payload.push_back(MessageType::STAGING_VOTE_TO_START);
-
-		input->header = input->payload.size();
-
-		sock->writeQueue.enqueue(input);
+		sock->writeQueue.enqueue(out);
 	}
 
   return false;
@@ -118,15 +119,32 @@ void StagingMode::update(float elapsed) {
 		switch (out->payload.at(0)) { // message type
 			case MessageType::STAGING_PLAYER_CONNECT: {
 				// TODO: this should be done in an unpacking function
-				ConnectMessage* msg = reinterpret_cast<ConnectMessage*>(out->payload.data());
+				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
 				std::cout << "Player " << (int)msg->id+1 << " joined the game." << std::endl;
 
 				break;
 			}
 
 			case MessageType::STAGING_VOTE_TO_START: {
-				VoteToStartMessage* msg = reinterpret_cast<VoteToStartMessage*>(out->payload.data());
+				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
 				std::cout << "Player " << (int)msg->id+1 << " voted to start the game." << std::endl;
+				starting = true;
+
+				break;
+			}
+
+			case MessageType::STAGING_VETO_START: {
+				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
+				std::cout << "Player " << (int)msg->id+1 << " vetoed the game start." << std::endl;
+				starting = false;
+
+				break;
+			}
+
+			case MessageType::STAGING_START_GAME: {
+				enterGame(sock); // TODO: make sock unique_ptr and move it here
+				// TODO: maybe should add a GameInfo struct and pass that to the game, to capture # players, etc.
+				// or have the server tell us all that too, maybe easier
 
 				break;
 			}

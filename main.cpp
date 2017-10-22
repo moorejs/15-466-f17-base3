@@ -1,6 +1,7 @@
 #include "MenuMode.hpp"
 #include "GameMode.hpp"
 #include "StagingMode.hpp"
+#include "Socket.hpp"
 
 #include "GL.hpp"
 #include "Load.hpp"
@@ -20,7 +21,7 @@
 int main(int argc, char** argv) {
 	// Configuration:
 	struct {
-		std::string title = "Pool Dozer";
+		std::string title = "Odd One Out";
 		glm::uvec2 size = glm::uvec2(640, 400);
 	} config;
 
@@ -100,8 +101,9 @@ int main(int argc, char** argv) {
 	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice&) { Mode::set_current(nullptr); });
 	menu->selected = 1;
 
-	staging->enterGame = [&]() {
+	staging->enterGame = [&](Socket* sock) {
 		game->reset();
+		game->sock = sock;
 		Mode::set_current(game);
 	};
 
