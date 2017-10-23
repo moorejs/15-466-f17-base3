@@ -155,6 +155,18 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		sock->writeQueue.enqueue(input);
 	}
 
+	// temporary mouse movement for camera
+	if (e.type == SDL_MOUSEMOTION) {
+		static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
+		glm::vec2 old_mouse = mouse;
+		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
+		mouse.y = (e.motion.y + 0.5f) / float(480) *-2.0f + 1.0f;
+		if (e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
+			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
+		}
+	}
+
 
 	if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
 		if (show_menu)
@@ -187,10 +199,22 @@ void GameMode::update(float elapsed) {
 
 void GameMode::draw(glm::uvec2 const& drawable_size) {
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
-	scene.camera.fovy = 25.0f / 180.0f * 3.1415926f;
-	scene.camera.transform.rotation = glm::angleAxis(17.0f / 180.0f * 3.1415926f, glm::vec3(1.0f, 0.0f, 0.0f));
-	scene.camera.transform.position = glm::vec3(0.0f, -3.3f, 10.49f);
-	scene.camera.near = 4.0f;
+	scene.camera.fovy = glm::radians(60.0f);
+	scene.camera.near = 0.01f;
+
+	// camera:
+	scene.camera.transform.position = camera.radius * glm::vec3(
+		std::cos(camera.elevation) * std::cos(camera.azimuth),
+		std::cos(camera.elevation) * std::sin(camera.azimuth),
+		std::sin(camera.elevation)) + camera.target;
+
+	glm::vec3 out = -glm::normalize(camera.target - scene.camera.transform.position);
+	glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);
+	up = glm::normalize(up - glm::dot(up, out) * out);
+	glm::vec3 right = glm::cross(up, out);
+
+	scene.camera.transform.rotation = glm::quat_cast(glm::mat3(right, up, out));
+	scene.camera.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
 
 	scene.render();
 }

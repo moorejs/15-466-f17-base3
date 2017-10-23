@@ -33,6 +33,13 @@ struct GameMode : public Mode {
 	// function to call when 'ESC' is pressed:
 	std::function<void()> show_menu;
 
+	struct {
+		float radius = 10.0f;
+		float elevation = 0.75f;
+		float azimuth = 3.1f;
+		glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
+	} camera;
+
 	bool did_end = false;
 
 	// functions to call when game ends:
