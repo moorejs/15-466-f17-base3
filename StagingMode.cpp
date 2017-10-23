@@ -11,17 +11,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define PORT "3490"
-
-// get sockaddr, IPv4 or IPv6:
-void* get_in_addr(struct sockaddr* sa) {
-	if (sa->sa_family == AF_INET) {
-		return &(((struct sockaddr_in*)sa)->sin_addr);
-	}
-
-	return &(((struct sockaddr_in6*)sa)->sin6_addr);
-}
-
 StagingMode::StagingMode() {
 
 }
@@ -33,50 +22,7 @@ void StagingMode::reset() {
 		delete sock;
 	}
 
-	// Basic client code structure from http://beej.us/guide/bgnet/output/html/multipage/clientserver.html#simpleclient
-  int sockfd;
-	struct addrinfo hints, *servinfo, *p;
-	int rv;
-	char s[INET6_ADDRSTRLEN];
-
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-
-	if ((rv = getaddrinfo("::1", PORT, &hints, &servinfo)) != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-		// TODO: what now?
-		return;
-	}
-
-	// loop through all the results and connect to the first we can
-	for (p = servinfo; p != NULL; p = p->ai_next) {
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
-			perror("client: socket");
-			continue;
-		}
-
-		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sockfd);
-			perror("client: connect");
-			continue;
-		}
-
-		break;
-	}
-
-	if (p == NULL) {
-		fprintf(stderr, "client: failed to connect\n");
-		// TODO: what now?
-		return;
-	}
-
-	inet_ntop(p->ai_family, get_in_addr((struct sockaddr*)p->ai_addr), s, sizeof s);
-	printf("client: connecting to %s\n", s);
-
-	freeaddrinfo(servinfo);	// all done with this structure
-
-	sock = new Socket(sockfd);
+	sock = Socket::connect("::1", "3490");
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {
