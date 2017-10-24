@@ -62,6 +62,8 @@ class Socket {
 
 	int fd;
 	std::atomic<bool> connected;
+	// TODO: probably can use std::memory_order_relaxed for operations on connected
+	// http://en.cppreference.com/w/cpp/atomic/atomic/store
 
 public:
 	// no move or copying

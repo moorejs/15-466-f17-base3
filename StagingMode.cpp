@@ -1,15 +1,54 @@
 #include "StagingMode.hpp"
 
-#include <cstdio>
-#include <cstdlib>
-#include <unistd.h>
-#include <cerrno>
-#include <cstring>
-#include <netdb.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#include "Load.hpp"
+#include "GLProgram.hpp"
+#include "GLVertexArray.hpp"
+#include "MeshBuffer.hpp"
+
+#include <glm/gtc/type_ptr.hpp>
+
+Load<MeshBuffer> staging_meshes(LoadTagInit, [](){
+	return new MeshBuffer("menu.p");
+});
+
+//Attrib locations in staging_program:
+GLint staging_program_Position = -1;
+//Uniform locations in staging_program:
+GLint staging_program_mvp = -1;
+GLint staging_program_color = -1;
+
+//Menu program itself:
+Load<GLProgram> staging_program(LoadTagInit, [](){
+	GLProgram *ret = new GLProgram(
+		"#version 330\n"
+		"uniform mat4 mvp;\n"
+		"in vec4 Position;\n"
+		"void main() {\n"
+		"	gl_Position = mvp * Position;\n"
+		"}\n"
+	,
+		"#version 330\n"
+		"uniform vec3 color;\n"
+		"out vec4 fragColor;\n"
+		"void main() {\n"
+		"	fragColor = vec4(color, 1.0);\n"
+		"}\n"
+	);
+
+	staging_program_Position = (*ret)("Position");
+	staging_program_mvp = (*ret)["mvp"];
+	staging_program_color = (*ret)["color"];
+
+	return ret;
+});
+
+//Binding for using staging_program on staging_meshes:
+Load<GLVertexArray> staging_binding(LoadTagDefault, [](){
+	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(staging_program->program, {
+		{staging_program_Position, staging_meshes->Position},
+	}));
+	return ret;
+});
 
 StagingMode::StagingMode() {
 
@@ -111,4 +150,77 @@ void StagingMode::update(float elapsed) {
 		delete out;
 	}
 }
-void StagingMode::draw(glm::uvec2 const& drawable_size) {}
+void StagingMode::draw(glm::uvec2 const& drawable_size) {
+	float aspect = drawable_size.x / float(drawable_size.y);
+	//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
+	glm::vec2 scale = glm::vec2(1.0f / aspect, 1.0f);
+	glm::mat4 projection = glm::mat4(
+		glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
+		glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+		glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+		glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+	);
+
+	glUseProgram(staging_program->program);
+	glBindVertexArray(staging_binding->array);
+
+	// centered for now
+	// TODO: could cache parts of this?
+	static auto draw_word = [&projection](const std::string& word, float y) {
+		//character width and spacing helpers:
+		// (...in terms of the menu font's default 3-unit height)
+		auto width = [](char a) {
+			if (a == 'I') return 1.0f;
+			else if (a == 'L') return 2.0f;
+			else if (a == 'M' || a == 'W') return 4.0f;
+			else return 3.0f;
+		};
+		auto spacing = [](char a, char b) {
+			return 1.0f;
+		};
+
+		float total_width = 0.0f;
+		for (uint32_t i = 0; i < word.size(); ++i) {
+			if (i > 0) total_width += spacing(word[i-1], word[i]);
+			total_width += width(word[i]);
+		}
+
+		float x = -0.5f * total_width;
+		for (uint32_t i = 0; i < word.size(); ++i) {
+			if (i > 0) {
+				x += spacing(word[i], word[i-1]);
+			}
+
+			if (word[i] != ' ') {
+				float s = 0.1f * (1.0f / 3.0f);
+				glm::mat4 mvp = projection * glm::mat4(
+					glm::vec4(s, 0.0f, 0.0f, 0.0f),
+					glm::vec4(0.0f, s, 0.0f, 0.0f),
+					glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+					glm::vec4(s * x, y, 0.0f, 1.0f)
+				);
+				glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+				glUniform3f(staging_program_color, 1.0f, 1.0f, 1.0f);
+
+				MeshBuffer::Mesh const &mesh = staging_meshes->lookup(word.substr(i, 1));
+				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+			}
+
+			x += width(word[i]);
+		}
+	};
+
+	// TODO: message queue with timeouts, relatively simple?
+	if (!sock) {
+		draw_word("NOT CONNECTED TO SERVER", -0.95f);
+	} else {
+		draw_word("CONNECTED TO SERVER", -0.95f);
+
+		if (!starting) {
+			draw_word("CLICK TO START", 0.0f);
+		} else {
+			draw_word("CLICK TO VETO START", 0.0f);
+			draw_word("STARTING IN FIVE SECONDS", 0.3f);
+		}
+	}
+}
