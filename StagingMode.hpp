@@ -2,6 +2,9 @@
 
 #include "Mode.hpp"
 #include "Socket.hpp"
+#include "Random.hpp"
+
+#include <random>
 
 struct StagingMode : public Mode {
 	StagingMode();
@@ -14,6 +17,20 @@ struct StagingMode : public Mode {
 	void reset();
 
 	Socket* sock;
+
+	std::mt19937 twister;
+	UniformRealDistribution<float> dist;
+	std::function<float()> rand = [&]() -> float {
+		return dist(twister);
+	};
+
+	struct StagingState {
+		enum Role {
+			NONE,
+			ROBBER,
+			COP,
+		} role = Role::NONE;
+	} stagingState;
 
 	bool starting;
 

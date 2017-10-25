@@ -132,9 +132,7 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	std::cout << "Game may crash here" << std::endl;
 	staging->reset();
-	std::cout << "Nope it survived" << std::endl;
 	Mode::set_current(staging);
 
 	//------------ game loop ------------

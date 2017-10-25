@@ -50,8 +50,14 @@ Load<GLVertexArray> staging_binding(LoadTagDefault, [](){
 	return ret;
 });
 
-StagingMode::StagingMode() {
+StagingMode::StagingMode()
+{
+	sock = nullptr;
 
+	int seed = 10;
+	twister.seed(seed);
+
+	std::cout << "seed " << seed << " produces " << rand() << " " << rand() << " " << rand() << std::endl;
 }
 
 // Connect to server
@@ -60,7 +66,6 @@ void StagingMode::reset() {
 		sock->close();
 		delete sock;
 	}
-
 	sock = Socket::connect("::1", "3490");
 }
 
@@ -102,6 +107,7 @@ void StagingMode::update(float elapsed) {
 		}
 
 		switch (out->payload.at(0)) { // message type
+
 			case MessageType::STAGING_PLAYER_CONNECT: {
 				// TODO: this should be done in an unpacking function
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
