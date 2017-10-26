@@ -71,11 +71,11 @@ void StagingMode::reset() {
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {
-	if (!sock) {
-		return false;
-	}
-
 	if (event.type == SDL_MOUSEBUTTONDOWN) {
+		if (!sock) {
+			reset();
+		}
+
 		Packet* out;
 		if (starting) {
 			out = SimpleMessage::pack(MessageType::STAGING_VETO_START);
@@ -90,7 +90,15 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 }
 
 void StagingMode::update(float elapsed) {
+	static float retryConnection = 0.0f;
+	static float retryConnectionLimit = 2.0f;
 	if (!sock) {
+		retryConnection += elapsed;
+		if (retryConnection > retryConnectionLimit) {
+			reset();
+			retryConnection = 0.0f;
+			std::cout << "trying to reconnect" << std::endl;
+		};
 		return;
 	}
 
