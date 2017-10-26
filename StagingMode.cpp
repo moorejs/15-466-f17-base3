@@ -52,6 +52,7 @@ Load<GLVertexArray> staging_binding(LoadTagDefault, [](){
 
 StagingMode::StagingMode()
 {
+	starting = false;
 	sock = nullptr;
 
 	int seed = 10;
