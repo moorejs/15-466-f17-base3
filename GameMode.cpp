@@ -1,3 +1,4 @@
+#include "Draw.hpp"
 #include "GameMode.hpp"
 
 #include "Load.hpp"
@@ -6,8 +7,40 @@
 #include "GLProgram.hpp"
 #include "GLVertexArray.hpp"
 
+#include <SDL2/SDL.h>
+#include <glm/glm.hpp>
+
+
 #include <fstream>
 #include <algorithm>
+
+bool isSnapshotOn = false;
+float randX;
+float randY;
+SDL_TimerID snapshot_timer;
+SDL_TimerID reset_snapshot_timer;
+Uint32 snapshot_delay = 10000;
+Uint32 snapshot_reset_delay = 2000;
+
+Uint32 resetSnapShot(Uint32 interval, void *param){
+    isSnapshotOn = false;
+    
+    SDL_RemoveTimer(reset_snapshot_timer);
+    
+    return interval;
+}
+
+Uint32 enableSnapShot(Uint32 interval, void *param){
+    
+    randX = (rand()%10 - 10)/10.0f;
+    randY = (rand()%10)/10.0f;
+    
+    isSnapshotOn = true;
+    
+    reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
+    
+    return interval;
+}
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
 
@@ -85,6 +118,26 @@ Load<GLVertexArray> binding(LoadTagDefault, []() {
 
 //------------------------------
 
+void snapShot(float x,float y){
+    
+    glEnable( GL_STENCIL_TEST );
+    glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
+    glDepthMask(GL_FALSE);
+    glStencilFunc( GL_NEVER, 1, 1 );
+    glStencilOp( GL_REPLACE, GL_KEEP, GL_KEEP );
+    
+    glStencilMask(0xFF);
+    glClear(GL_STENCIL_BUFFER_BIT);
+    
+    Draw draw;
+    
+    draw.add_rectangle(glm::vec2(x,y),glm::vec2(x+0.75f,y-0.75f),glm::u8vec4(0x00, 0x00, 0x00, 0xff));
+    draw.draw();
+    
+    glStencilMask(0x00);
+    glStencilFunc( GL_EQUAL, 1, 1 );
+}
+
 GameMode::GameMode() {
 	auto add_object = [&](std::string const& name, glm::vec3 const& position, glm::quat const& rotation,
 												glm::vec3 const& scale) {
@@ -106,6 +159,8 @@ GameMode::GameMode() {
 		object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
 
 	};
+    
+    snapshot_timer = SDL_AddTimer(snapshot_delay,enableSnapShot,NULL);
 
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
@@ -153,6 +208,19 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		input->header = input->payload.size();
 
 		sock->writeQueue.enqueue(input);
+        
+        switch(e.key.keysym.sym){
+            case SDLK_LEFT:
+                if(isSnapshotOn==false){
+                    randX = (rand()%10 - 10)/10.0f;
+                    randY = (rand()%10)/10.0f;
+                    
+                }
+                isSnapshotOn = true;
+                break;
+            default:
+                break;
+        }
 	}
 
 	// temporary mouse movement for camera
@@ -215,6 +283,21 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.camera.transform.rotation = glm::quat_cast(glm::mat3(right, up, out));
 	scene.camera.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    if(isSnapshotOn){
+        snapShot(randX,randY);
+    }
+    
+    glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	scene.render();
+    
+    glDisable(GL_STENCIL_TEST);
 }

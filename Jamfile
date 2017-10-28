@@ -62,6 +62,7 @@ NAMES =
 	MenuMode
 	GameMode
 	StagingMode
+	Draw
 	;
 
 if $(OS) = NT {
