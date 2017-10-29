@@ -60,6 +60,8 @@ NAMES =
 	Load
 	GLProgram
 	MenuMode
+	person
+	Collisions
 	GameMode
 	StagingMode
 	Draw

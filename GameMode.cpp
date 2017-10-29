@@ -14,6 +14,9 @@
 #include <fstream>
 #include <algorithm>
 
+#include "person.h"
+#include "Collisions.h"
+
 bool isSnapshotOn = false;
 float randX;
 float randY;
@@ -21,6 +24,7 @@ SDL_TimerID snapshot_timer;
 SDL_TimerID reset_snapshot_timer;
 Uint32 snapshot_delay = 10000;
 Uint32 snapshot_reset_delay = 2000;
+Collision collisionFramework = Collision(BBox(glm::vec2(-1.92,-7.107),glm::vec2(6.348,9.775)));
 
 Uint32 resetSnapShot(Uint32 interval, void *param){
     isSnapshotOn = false;
@@ -157,7 +161,7 @@ GameMode::GameMode() {
 		object.count = mesh.count;
 
 		object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
-
+		return &object;
 	};
     
     snapshot_timer = SDL_AddTimer(snapshot_delay,enableSnapShot,NULL);
@@ -189,6 +193,19 @@ GameMode::GameMode() {
 				add_object(name, entry.position, entry.rotation, entry.scale);
 			}
 		}
+	}
+	//TODO: asset pipeline bounding boxes. Hard coded for now.
+	//these are the four houses
+	collisionFramework.addBounds(BBox(glm::vec2(0.719,-1.003),glm::vec2(2.763,2.991)));
+	collisionFramework.addBounds(BBox(glm::vec2(4.753,-2.318),glm::vec2(6.737,-0.24)));
+	collisionFramework.addBounds(BBox(glm::vec2(4.451,6.721),glm::vec2(9.929,8.799)));
+	collisionFramework.addBounds(BBox(glm::vec2(0.247,7.31),glm::vec2(2.397,9.986)));
+
+	int numPlayers = 50;
+	srand(time(NULL));
+	for(int i=0;i<numPlayers;i++){
+		Scene::Object* obj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
+		makeAI(obj)->placeInScene(); //Will be kept track of by class
 	}
 }
 
@@ -233,6 +250,10 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
+		
+	}else if(e.type == SDL_KEYDOWN){
+		if(e.key.keysym.sym == SDLK_TAB) camera.radius++;
+		else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
 	}
 
 
@@ -248,6 +269,7 @@ void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
 
+	Person::moveAll(elapsed,&collisionFramework);
 	Packet* out;
 	while (sock->readQueue.try_dequeue(out)) {
 		if (!out) {
