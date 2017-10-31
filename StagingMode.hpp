@@ -4,7 +4,10 @@
 #include "Socket.hpp"
 #include "Random.hpp"
 
+#include <memory>
 #include <random>
+#include <unordered_map>
+#include <vector>
 
 struct StagingMode : public Mode {
 	StagingMode();
@@ -29,8 +32,41 @@ struct StagingMode : public Mode {
 			NONE,
 			ROBBER,
 			COP,
-		} role = Role::NONE;
+		};
+
+		struct Client {
+			int id;
+			std::string name;
+			Role role;
+		};
+
+		Client* player = nullptr; // no ownership
+		Client* robber = nullptr; // no ownership
+		int undecided = 0;
+		std::unordered_map<int, std::unique_ptr<Client>> players;
+
 	} stagingState;
+
+	// temp, will move this
+	struct Button {
+		glm::vec2 pos;
+		glm::vec2 rad;
+		std::string label;
+		glm::vec3 color;
+		bool hover = false;
+
+		std::function<bool()> isEnabled;
+		std::function<void()> onFire;
+
+		bool contains(const glm::vec2& point) const {
+			std::cout << "point: " << point.x << " " << point.y << std::endl;
+			std::cout << "left: " << pos.x - rad.x << " " << pos.y - rad.y << std::endl;
+			std::cout << "right: " << pos.x + rad.x << " " << pos.y + rad.y << std::endl;
+			return point.x > pos.x - rad.x && point.x < pos.x + rad.x
+			 	&& point.y > pos.y - rad.y && point.y < pos.y + rad.y;
+		}
+	};
+	std::vector<Button> buttons;
 
 	bool starting;
 
