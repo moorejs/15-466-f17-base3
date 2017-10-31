@@ -27,6 +27,8 @@ SDL_TimerID reset_snapshot_timer;
 SDL_TimerID testimony_timer;
 SDL_TimerID reset_testimony_timer;
 
+float player_move_speed = 0.1f;
+
 Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
@@ -38,6 +40,7 @@ GLint word_program_Position = -1;
 //Uniform locations in staging_program:
 GLint word_program_mvp = -1;
 GLint word_program_color = -1;//color
+Scene::Object* playerObj;
 
 std::vector<std::string> random_testimonies = {"IN A RED SHIRT","WITH BROWN HAIR","WITH BLACK HAIR","WITH BLUE SHOES","IN A GRAY SUIT","WITH A BLACK WATCH","ON THE ROAD","WITH A HAT","NEAR THE STORE","WITH BLOND HAIR","WITH GLASSES"};
 
@@ -290,6 +293,10 @@ GameMode::GameMode() {
 		Scene::Object* obj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
 		makeAI(obj)->placeInScene(); //Will be kept track of by class
 	}
+    
+    playerObj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
+    
+    
 }
 
 void GameMode::reset() {}
@@ -311,12 +318,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
         
         switch(e.key.keysym.sym){
             case SDLK_LEFT:
-                if(isSnapshotOn==false){
-                    randX = (rand()%10 - 10)/10.0f;
-                    randY = (rand()%10)/10.0f;
-                    
-                }
-                isSnapshotOn = true;
                 break;
             default:
                 break;
