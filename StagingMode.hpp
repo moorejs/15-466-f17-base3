@@ -59,9 +59,6 @@ struct StagingMode : public Mode {
 		std::function<void()> onFire;
 
 		bool contains(const glm::vec2& point) const {
-			std::cout << "point: " << point.x << " " << point.y << std::endl;
-			std::cout << "left: " << pos.x - rad.x << " " << pos.y - rad.y << std::endl;
-			std::cout << "right: " << pos.x + rad.x << " " << pos.y + rad.y << std::endl;
 			return point.x > pos.x - rad.x && point.x < pos.x + rad.x
 			 	&& point.y > pos.y - rad.y && point.y < pos.y + rad.y;
 		}
