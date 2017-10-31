@@ -2,19 +2,19 @@
 #include <stdio.h>
 
 std::vector<Person*> Person::people = std::vector<Person*>();
-
+std::function<float()> Person::random;
 
 Person* makeAI(Scene::Object* obj){
 	Person* pers = (Person*) malloc(sizeof(Person));
-	*pers  = Person(obj);	
+	*pers  = Person(obj);
 	Person::people.push_back(pers);
 	return pers;
 }
 
 glm::vec3 randVel(){
 	const static float maxVel = 2.f;
-	float rand1 = 2*(float(rand())/RAND_MAX-0.5);
-	float rand2 = 2*(float(rand())/RAND_MAX-0.5);
+	float rand1 = 2*(Person::random()-0.5f);
+	float rand2 = 2*(Person::random()-0.5f);
 	return glm::vec3(maxVel*rand1,maxVel*rand2,0);
 }
 

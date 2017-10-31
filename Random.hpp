@@ -1,3 +1,5 @@
+#pragma once
+
 // a platform independent uniform and normal distribution
 
 // code below is from https://stackoverflow.com/a/34962942

@@ -102,18 +102,18 @@ int main(int argc, char** argv) {
 	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice&) { Mode::set_current(nullptr); });
 	menu->selected = 1;
 
-	staging->enterGame = [&](Socket* sock) {
-		game->reset();
+	staging->enterGame = [&](Socket* sock, int seed) {
+		game->reset(seed);
 		game->sock = sock;
 		Mode::set_current(game);
 	};
-
-	game->show_menu = [&]() {
+	staging->showMenu = [&]() {
 		menu->choices[0].label = "ODD ONE OUT";
 		menu->choices[1].label = "PLAY LOCAL";
 		menu->selected = 2;
 		Mode::set_current(menu);
 	};
+
 	game->diamonds_wins = [&]() {
 		menu->choices[0].label = "DIAMONDS WINS";
 		menu->choices[1].label = "PLAY AGAIN";

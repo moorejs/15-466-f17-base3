@@ -1,15 +1,18 @@
+#pragma once
+
 #include <vector>
 #include <glm/glm.hpp>
 #include "Scene.hpp"
 #include "Collisions.h"
 
-
 #include <stdlib.h>
 #include <time.h>
+#include <functional>
 
 class Person{
 public:
 	static std::vector<Person*> people;
+	static std::function<float()> random;
 	/* TODO: fuuuuuture
 	struct Outfit{
 		Scene::Object* head, body, legs;

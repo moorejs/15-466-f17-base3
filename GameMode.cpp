@@ -45,85 +45,85 @@ Scene::Object* playerObj;
 std::vector<std::string> random_testimonies = {"IN A RED SHIRT","WITH BROWN HAIR","WITH BLACK HAIR","WITH BLUE SHOES","IN A GRAY SUIT","WITH A BLACK WATCH","ON THE ROAD","WITH A HAT","NEAR THE STORE","WITH BLOND HAIR","WITH GLASSES"};
 
 Uint32 resetSnapShot(Uint32 interval, void *param){
-    isSnapshotOn = false;
-    
-    SDL_RemoveTimer(reset_snapshot_timer);
-    
-    return interval;
+		isSnapshotOn = false;
+		
+		SDL_RemoveTimer(reset_snapshot_timer);
+		
+		return interval;
 }
 
 Uint32 enableSnapShot(Uint32 interval, void *param){
-    
-    randX = (rand()%10 - 10)/10.0f;
-    randY = (rand()%10)/10.0f;
-    
-    isSnapshotOn = true;
-    
-    Person::freezeAll();
-    
-    reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
-    
-    return interval;
+		
+		randX = (rand()%10 - 10)/10.0f;
+		randY = (rand()%10)/10.0f;
+		
+		isSnapshotOn = true;
+		
+		Person::freezeAll();
+		
+		reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
+		
+		return interval;
 }
 
 
 Uint32 resetTestimony(Uint32 interval, void *param){
-    isTestimonyShowing = false;
-    
-    SDL_RemoveTimer(reset_testimony_timer);
-    
-    return interval;
+		isTestimonyShowing = false;
+		
+		SDL_RemoveTimer(reset_testimony_timer);
+		
+		return interval;
 }
 
 Uint32 showTestimony(Uint32 interval, void *param){
-    
-    testimony_text = random_testimonies[rand() % random_testimonies.size()];
-    
-    
-    isTestimonyShowing = true;
-    
-    reset_testimony_timer = SDL_AddTimer(testimony_reset_delay,resetTestimony,NULL);
-    
-    return interval;
+		
+		testimony_text = random_testimonies[rand() % random_testimonies.size()];
+		
+		
+		isTestimonyShowing = true;
+		
+		reset_testimony_timer = SDL_AddTimer(testimony_reset_delay,resetTestimony,NULL);
+		
+		return interval;
 }
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
 
 Load<MeshBuffer> word_meshes(LoadTagInit, [](){
-    return new MeshBuffer("menu.p");
+		return new MeshBuffer("menu.p");
 });
 
 //Menu program itself:
 Load<GLProgram> word_program(LoadTagInit, [](){
-    GLProgram *ret = new GLProgram(
-                                   "#version 330\n"
-                                   "uniform mat4 mvp;\n"
-                                   "in vec4 Position;\n"
-                                   "void main() {\n"
-                                   "	gl_Position = mvp * Position;\n"
-                                   "}\n"
-                                   ,
-                                   "#version 330\n"
-                                   "uniform vec3 color;\n"
-                                   "out vec4 fragColor;\n"
-                                   "void main() {\n"
-                                   "	fragColor = vec4(color, 1.0);\n"
-                                   "}\n"
-                                   );
-    
-    word_program_Position = (*ret)("Position");
-    word_program_mvp = (*ret)["mvp"];
-    word_program_color = (*ret)["color"];
-    
-    return ret;
+		GLProgram *ret = new GLProgram(
+																	 "#version 330\n"
+																	 "uniform mat4 mvp;\n"
+																	 "in vec4 Position;\n"
+																	 "void main() {\n"
+																	 "	gl_Position = mvp * Position;\n"
+																	 "}\n"
+																	 ,
+																	 "#version 330\n"
+																	 "uniform vec3 color;\n"
+																	 "out vec4 fragColor;\n"
+																	 "void main() {\n"
+																	 "	fragColor = vec4(color, 1.0);\n"
+																	 "}\n"
+																	 );
+		
+		word_program_Position = (*ret)("Position");
+		word_program_mvp = (*ret)["mvp"];
+		word_program_color = (*ret)["color"];
+		
+		return ret;
 });
 
 //Binding for using staging_program on staging_meshes:
 Load<GLVertexArray> word_binding(LoadTagDefault, [](){
-    GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(word_program->program, {
-        {word_program_Position, word_meshes->Position},
-    }));
-    return ret;
+		GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(word_program->program, {
+				{word_program_Position, word_meshes->Position},
+		}));
+		return ret;
 });
 
 // Attrib locations in game_program:
@@ -201,57 +201,33 @@ Load<GLVertexArray> binding(LoadTagDefault, []() {
 //------------------------------
 
 void snapShot(float x,float y){
-    
-    glEnable( GL_STENCIL_TEST );
-    glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
-    glDepthMask(GL_FALSE);
-    glStencilFunc( GL_NEVER, 1, 1 );
-    glStencilOp( GL_REPLACE, GL_KEEP, GL_KEEP );
-    
-    glStencilMask(0xFF);
-    glClear(GL_STENCIL_BUFFER_BIT);
-    
-    Draw draw;
-    
-    draw.add_rectangle(glm::vec2(x,y),glm::vec2(x+0.75f,y-0.75f),glm::u8vec4(0x00, 0x00, 0x00, 0xff));
-    draw.draw();
-    
-    glStencilMask(0x00);
-    glStencilFunc( GL_EQUAL, 1, 1 );
+		
+		glEnable( GL_STENCIL_TEST );
+		glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
+		glDepthMask(GL_FALSE);
+		glStencilFunc( GL_NEVER, 1, 1 );
+		glStencilOp( GL_REPLACE, GL_KEEP, GL_KEEP );
+		
+		glStencilMask(0xFF);
+		glClear(GL_STENCIL_BUFFER_BIT);
+		
+		Draw draw;
+		
+		draw.add_rectangle(glm::vec2(x,y),glm::vec2(x+0.75f,y-0.75f),glm::u8vec4(0x00, 0x00, 0x00, 0xff));
+		draw.draw();
+		
+		glStencilMask(0x00);
+		glStencilFunc( GL_EQUAL, 1, 1 );
 }
 
 GameMode::GameMode() {
-	auto add_object = [&](std::string const& name, glm::vec3 const& position, glm::quat const& rotation,
-												glm::vec3 const& scale) {
-		scene.objects.emplace_back();
-		Scene::Object& object = scene.objects.back();
-		object.transform.position = position;
-		object.transform.rotation = rotation;
-		object.transform.scale = scale;
-
-		MeshBuffer::Mesh const& mesh = meshes->lookup(name);
-		object.program = game_program->program;
-		object.program_mvp = game_program_mvp;
-		object.program_mv = game_program_mv;
-		object.program_itmv = game_program_itmv;
-		object.vao = binding->array;
-		object.start = mesh.start;
-		object.count = mesh.count;
-
-		object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
-		return &object;
-	};
-    
-    camera.elevation = 1.00833f;
-    camera.azimuth = 3.15f;
-    
-    snapshot_timer = SDL_AddTimer(snapshot_delay,enableSnapShot,NULL);
-    
-    testimony_timer = SDL_AddTimer(testimony_delay,showTestimony,NULL);
-    
-    
-    
-
+	camera.elevation = 1.00833f;
+	camera.azimuth = 3.15f;
+	
+	snapshot_timer = SDL_AddTimer(snapshot_delay,enableSnapShot,NULL);
+	
+	testimony_timer = SDL_AddTimer(testimony_delay,showTestimony,NULL);
+	
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
 
@@ -276,7 +252,7 @@ GameMode::GameMode() {
 					throw std::runtime_error("index entry has out-of-range name begin/end");
 				}
 				std::string name(&strings[0] + entry.name_begin, &strings[0] + entry.name_end);
-				add_object(name, entry.position, entry.rotation, entry.scale);
+				addObject(name, entry.position, entry.rotation, entry.scale);
 			}
 		}
 	}
@@ -286,20 +262,20 @@ GameMode::GameMode() {
 	collisionFramework.addBounds(BBox(glm::vec2(4.753,-2.318),glm::vec2(6.737,-0.24)));
 	collisionFramework.addBounds(BBox(glm::vec2(4.451,6.721),glm::vec2(9.929,8.799)));
 	collisionFramework.addBounds(BBox(glm::vec2(0.247,7.31),glm::vec2(2.397,9.986)));
-
-	int numPlayers = 50;
-	srand(time(NULL));
-	for(int i=0;i<numPlayers;i++){
-		Scene::Object* obj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-		makeAI(obj)->placeInScene(); //Will be kept track of by class
-	}
-    
-    playerObj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-    
-    
 }
 
-void GameMode::reset() {}
+void GameMode::reset(int seed) {
+	twister.seed(seed);
+
+	int numPlayers = 50;
+
+	Person::random = rand;
+	for (int i=0;i<numPlayers;i++) {
+		Scene::Object* obj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
+		makeAI(obj)->placeInScene(); //Will be kept track of by class
+	}
+	playerObj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
+}
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
@@ -315,13 +291,13 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		input->header = input->payload.size();
 
 		sock->writeQueue.enqueue(input);
-        
-        switch(e.key.keysym.sym){
-            case SDLK_LEFT:
-                break;
-            default:
-                break;
-        }
+				
+				switch(e.key.keysym.sym){
+						case SDLK_LEFT:
+								break;
+						default:
+								break;
+				}
 	}
 
 	// temporary mouse movement for camera
@@ -338,23 +314,17 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	}else if(e.type == SDL_KEYDOWN){
 		if(e.key.keysym.sym == SDLK_TAB) camera.radius++;
 		//else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
-        else if(e.key.keysym.sym == SDLK_LSHIFT) std::cout<< camera.elevation << " "<< camera.azimuth << "\n";
+				else if(e.key.keysym.sym == SDLK_LSHIFT) std::cout<< camera.elevation << " "<< camera.azimuth << "\n";
 
 	}
 
-
-	if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
-		if (show_menu)
-			show_menu();
-		return true;
-	}
 	return false;
 }
 
 void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
-    
+		
 	Person::moveAll(elapsed,&collisionFramework);
 	Packet* out;
 	while (sock->readQueue.try_dequeue(out)) {
@@ -363,18 +333,24 @@ void GameMode::update(float elapsed) {
 			continue;
 		}
 
-		std::cout << "Message from server: ";
-		for (const auto& thing : out->payload) {
-			printf("%x ", thing);
+		switch (out->payload[0]) {
+
+			default:
+				std::cout << "Unknown message from server: ";
+				for (const auto& thing : out->payload) {
+					printf("%x ", thing);
+				}
+				std::cout << std::endl;
+				break;
+
 		}
-		std::cout << std::endl;
 
 		delete out;
 	}
 }
 
 void GameMode::draw(glm::uvec2 const& drawable_size) {
-    
+		
 	// camera:
 	scene.camera.transform.position = camera.radius * glm::vec3(
 		std::cos(camera.elevation) * std::cos(camera.azimuth),
@@ -388,96 +364,116 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.camera.transform.rotation = glm::quat_cast(glm::mat3(right, up, out));
 	scene.camera.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    
-    glClearColor(0.0, 0.0, 0.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
-    if(isSnapshotOn){
-        snapShot(randX,randY);
-    }
-    
-    
-    
-    glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
-    glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
+		
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
+		if(isSnapshotOn){
+				snapShot(randX,randY);
+		}
+		
+		
+		
+		glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
+		glDepthMask(GL_TRUE);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
 	scene.render();
-    
-    float aspect = drawable_size.x / float(drawable_size.y);
-    //scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
-    glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
-    glm::mat4 projection = glm::mat4(
-                                     glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
-                                     glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-                                     glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-                                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-                                     );
-    
-    static auto draw_word = [&projection](const std::string& word, float y) {
-        //character width and spacing helpers:
-        // (...in terms of the menu font's default 3-unit height)
-        auto width = [](char a) {
-            if (a == 'I') return 1.0f;
-            else if (a == 'L') return 2.0f;
-            else if (a == 'M' || a == 'W') return 4.0f;
-            else return 3.0f;
-        };
-        auto spacing = [](char a, char b) {
-            return 1.0f;
-        };
-        
-        float total_width = 0.0f;
-        for (uint32_t i = 0; i < word.size(); ++i) {
-            if (i > 0) total_width += spacing(word[i-1], word[i]);
-            total_width += width(word[i]);
-        }
-        
-        float x = -0.5f * total_width;
-        for (uint32_t i = 0; i < word.size(); ++i) {
-            if (i > 0) {
-                x += spacing(word[i], word[i-1]);
-            }
-            
-            if (word[i] != ' ') {
-                float s = 0.1f * (1.0f / 3.0f);
-                glm::mat4 mvp = projection * glm::mat4(
-                                                       glm::vec4(s, 0.0f, 0.0f, 0.0f),
-                                                       glm::vec4(0.0f, s, 0.0f, 0.0f),
-                                                       glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-                                                       glm::vec4(s * x, y, 0.0f, 1.0f)
-                                                       );
-                glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-                glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
-                
-                MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
-                glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-            }
-            
-            x += width(word[i]);
-        }
-    };
+		
+		float aspect = drawable_size.x / float(drawable_size.y);
+		//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
+		glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
+		glm::mat4 projection = glm::mat4(
+																		 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
+																		 glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+																		 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+																		 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+																		 );
+		
+		static auto draw_word = [&projection](const std::string& word, float y) {
+				//character width and spacing helpers:
+				// (...in terms of the menu font's default 3-unit height)
+				auto width = [](char a) {
+						if (a == 'I') return 1.0f;
+						else if (a == 'L') return 2.0f;
+						else if (a == 'M' || a == 'W') return 4.0f;
+						else return 3.0f;
+				};
+				auto spacing = [](char a, char b) {
+						return 1.0f;
+				};
+				
+				float total_width = 0.0f;
+				for (uint32_t i = 0; i < word.size(); ++i) {
+						if (i > 0) total_width += spacing(word[i-1], word[i]);
+						total_width += width(word[i]);
+				}
+				
+				float x = -0.5f * total_width;
+				for (uint32_t i = 0; i < word.size(); ++i) {
+						if (i > 0) {
+								x += spacing(word[i], word[i-1]);
+						}
+						
+						if (word[i] != ' ') {
+								float s = 0.1f * (1.0f / 3.0f);
+								glm::mat4 mvp = projection * glm::mat4(
+																											 glm::vec4(s, 0.0f, 0.0f, 0.0f),
+																											 glm::vec4(0.0f, s, 0.0f, 0.0f),
+																											 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+																											 glm::vec4(s * x, y, 0.0f, 1.0f)
+																											 );
+								glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+								glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
+								
+								MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
+								glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+						}
+						
+						x += width(word[i]);
+				}
+		};
 
-    
-    glUseProgram(word_program->program);
-    glBindVertexArray(word_binding->array);
-    
-    
-    if(isTestimonyShowing){
-        draw_word("ANONYMOUS TIP", -1.25f);
-        draw_word("SUSPICIOUS PERSON "+testimony_text+" REPORTED", -1.5f);
-    }
-    
-    
-    scene.camera.aspect = drawable_size.x / float(drawable_size.y);
-    scene.camera.fovy = glm::radians(60.0f);
-    scene.camera.near = 0.01f;
-    
-    
-    
-    glDisable(GL_STENCIL_TEST);
-    
-    
+		
+		glUseProgram(word_program->program);
+		glBindVertexArray(word_binding->array);
+		
+		
+		if(isTestimonyShowing){
+				draw_word("ANONYMOUS TIP", -1.25f);
+				draw_word("SUSPICIOUS PERSON "+testimony_text+" REPORTED", -1.5f);
+		}
+		
+		
+		scene.camera.aspect = drawable_size.x / float(drawable_size.y);
+		scene.camera.fovy = glm::radians(60.0f);
+		scene.camera.near = 0.01f;
+		
+		
+		
+		glDisable(GL_STENCIL_TEST);
+		
+		
+}
+
+Scene::Object* GameMode::addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation, glm::vec3 const& scale) {
+	scene.objects.emplace_back();
+	Scene::Object& object = scene.objects.back();
+	object.transform.position = position;
+	object.transform.rotation = rotation;
+	object.transform.scale = scale;
+
+	MeshBuffer::Mesh const& mesh = meshes->lookup(name);
+	object.program = game_program->program;
+	object.program_mvp = game_program_mvp;
+	object.program_mv = game_program_mv;
+	object.program_itmv = game_program_itmv;
+	object.vao = binding->array;
+	object.start = mesh.start;
+	object.count = mesh.count;
+
+	object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
+	return &object;
 }

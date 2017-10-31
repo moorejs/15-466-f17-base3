@@ -4,8 +4,10 @@
 
 #include "Scene.hpp"
 #include "Socket.hpp"
+#include "Random.hpp"
 
 #include <functional>
+#include <random>
 
 struct GameMode : public Mode {
 	GameMode();
@@ -15,7 +17,16 @@ struct GameMode : public Mode {
 	virtual void update(float elapsed) override;
 	virtual void draw(glm::uvec2 const& drawable_size) override;
 
-	void reset();	// reset the game state
+	void reset(int seed);	// reset the game state
+
+	Scene::Object* addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation,
+		glm::vec3 const& scale);
+
+	std::mt19937 twister;
+	UniformRealDistribution<float> dist;
+	std::function<float()> rand = [&]() -> float {
+		return dist(twister);
+	};
 
 	// scene + references into scene for objects:
 	Scene scene;
@@ -29,9 +40,6 @@ struct GameMode : public Mode {
 	};
 	Controls diamond_controls = {SDL_SCANCODE_A, SDL_SCANCODE_Z, SDL_SCANCODE_S, SDL_SCANCODE_X};
 	Controls solid_controls = {SDL_SCANCODE_SEMICOLON, SDL_SCANCODE_PERIOD, SDL_SCANCODE_APOSTROPHE, SDL_SCANCODE_SLASH};
-
-	// function to call when 'ESC' is pressed:
-	std::function<void()> show_menu;
 
 	struct {
 		float radius = 10.0f;
