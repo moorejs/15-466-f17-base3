@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
 
 	// Initialize SDL library:
 	SDL_Init(SDL_INIT_VIDEO);
+        
 
 	// Ask for an OpenGL context version 3.3, core profile, enable debug:
 	SDL_GL_ResetAttributes();

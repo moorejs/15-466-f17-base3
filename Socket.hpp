@@ -209,7 +209,7 @@ private:
 
 	// get complete packet
 	Packet* getPacket() {
-		int so_far;
+		unsigned int so_far;
 		Packet* packet = new Packet();
 
 		// get header (could be multiple bytes in future)
@@ -251,7 +251,7 @@ private:
 			return false;
 		}
 
-		int so_far = 0;
+		unsigned int so_far = 0;
 		do {
 			int m = send(packet->payload.data() + so_far, packet->payload.size() - so_far);
 			so_far += m;
