@@ -26,6 +26,12 @@ if $(OS) = NT {
 		;
 	LINK = clang++ ;
 	LINKFLAGS = -std=c++14 -g -Wall -Werror ;
+
+	if $(DEBUG) = true {
+		C++FLAGS = $(C++FLAGS) -DDEBUG ;
+		LINKFLAGS = $(LINKFLAGS) -DDEBUG ;
+	}
+
 	LINKLIBS =
 		-L$(KIT_LIBS)/libpng/lib -lpng                      #libpng
 		-L$(KIT_LIBS)/zlib/lib -lz                          #zlib

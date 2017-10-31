@@ -22,39 +22,39 @@
 using moodycamel::ReaderWriterQueue;
 using moodycamel::BlockingReaderWriterQueue;
 
-struct Packet {
-	uint8_t header;
-	std::vector<uint8_t> payload;
-};
-
 enum MessageType {
 	STAGING_PLAYER_CONNECT,
 	STAGING_PLAYER_DISCONNECT,
 	STAGING_VOTE_TO_START,
 	STAGING_VETO_START,
 	STAGING_START_GAME,
+	STAGING_ROLE_CHANGE,
+	STAGING_ROLE_CHANGE_REJECTION,
+	STAGING_PLAYER_SYNC,
 	INPUT,
 };
 
-struct SimpleMessage {
-	MessageType type : 8;
-	uint8_t id;
+struct Packet {
+	uint8_t header;
+	std::vector<uint8_t> payload;
 
-	static Packet* pack(MessageType type, uint8_t id = 255) {
+	static Packet* pack(MessageType type, std::initializer_list<uint8_t> extra = {}) {
 		Packet* packet = new Packet();
 
 		packet->payload.emplace_back(type);
-		if (id != 255) {
-			packet->payload.emplace_back(id);
-		}
+		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
 
 		packet->header = packet->payload.size();
 
 		return packet;
 	}
+};
+
+struct SimpleMessage {
+	uint8_t id;
 
 	static const SimpleMessage* unpack(const std::vector<uint8_t>& payload) {
-		return reinterpret_cast<const SimpleMessage*>(payload.data());
+		return reinterpret_cast<const SimpleMessage*>(payload.data() + 1);
 	}
 };
 
