@@ -40,10 +40,11 @@ struct StagingMode : public Mode {
 			Role role;
 		};
 
-		Client* player = nullptr; // no ownership
-		Client* robber = nullptr; // no ownership
-		int undecided = 0;
+		Client* player; // no ownership
+		Client* robber; // no ownership
+		int undecided;
 		std::unordered_map<int, std::unique_ptr<Client>> players;
+		bool starting;
 
 	} stagingState;
 
@@ -65,8 +66,6 @@ struct StagingMode : public Mode {
 	};
 	std::vector<Button> buttons;
 
-	bool starting;
-
-	std::function<void(Socket*)> enterGame;
-	std::function<void()> show_menu;
+	std::function<void(Socket*, int)> enterGame;
+	std::function<void()> showMenu;
 };

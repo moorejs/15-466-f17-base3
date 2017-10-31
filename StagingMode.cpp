@@ -63,7 +63,6 @@ StagingMode::StagingMode()
 {
 	DEBUG_PRINT("IN DEBUG MODE");
 
-	starting = false;
 	sock = nullptr;
 
 	int seed = 10;
@@ -80,7 +79,7 @@ StagingMode::StagingMode()
 	cop.label = "COP";
 
 	cop.isEnabled = [&]() {
-		return stagingState.player && stagingState.player->role != StagingState::Role::COP;
+		return !stagingState.starting && stagingState.player && stagingState.player->role != StagingState::Role::COP;
 	};
 	cop.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, { StagingState::Role::COP }));
@@ -95,7 +94,7 @@ StagingMode::StagingMode()
 	robber.label = "ROBBER";
 
 	robber.isEnabled = [&]() {
-		return stagingState.player && !stagingState.robber;
+		return !stagingState.starting && stagingState.player && !stagingState.robber;
 	};
 	robber.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, { StagingState::Role::ROBBER }));
@@ -113,7 +112,7 @@ StagingMode::StagingMode()
 	};
 	start.onFire = [&]() {
 		Packet* out;
-		if (starting) {
+		if (stagingState.starting) {
 			out = Packet::pack(MessageType::STAGING_VETO_START);
 		} else {
 			out = Packet::pack(MessageType::STAGING_VOTE_TO_START);
@@ -133,7 +132,16 @@ void StagingMode::reset() {
 		sock->close();
 		delete sock;
 	}
+
+	stagingState.robber = nullptr;
+	stagingState.player = nullptr;
+	stagingState.undecided = 0;
+	stagingState.players.clear();
+	stagingState.starting = false;
+
 	sock = Socket::connect("::1", "3490");
+
+
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {
@@ -157,6 +165,12 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 				return true;
 			}
 		}
+	}
+
+
+	if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
+		showMenu();
+		return true;
 	}
 
   return false;
@@ -291,7 +305,7 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_VOTE_TO_START: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
 				std::cout << "Player " << stagingState.players[msg->id]->name << " voted to start the game." << std::endl;
-				starting = true;
+				stagingState.starting = true;
 
 				buttons[2].label = "VETO START";
 
@@ -301,7 +315,7 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_VETO_START: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
 				std::cout << "Player " << stagingState.players[msg->id]->name << " vetoed the game start." << std::endl;
-				starting = false;
+				stagingState.starting = false;
 
 				buttons[2].label = "START GAME";
 
@@ -309,9 +323,9 @@ void StagingMode::update(float elapsed) {
 			}
 
 			case MessageType::STAGING_START_GAME: {
-				enterGame(sock); // TODO: make sock unique_ptr and move it here
-				// TODO: maybe should add a GameInfo struct and pass that to the game, to capture # players, etc.
-				// or have the server tell us all that too, maybe easier
+				// contains seed
+
+				enterGame(sock, out->payload.at(1)); // TODO: make sock unique_ptr and move it here
 
 				break;
 			}
