@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
 	};
 	staging->showMenu = [&]() {
 		menu->choices[0].label = "ODD ONE OUT";
-		menu->choices[1].label = "PLAY LOCAL";
+		menu->choices[1].label = "MULTIPLAYER";
 		menu->selected = 2;
 		Mode::set_current(menu);
 	};
@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	staging->reset();
-	Mode::set_current(staging);
+	game->reset(100); // temp
+	Mode::set_current(game);
 
 	//------------ game loop ------------
 

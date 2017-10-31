@@ -29,7 +29,7 @@ SDL_TimerID reset_testimony_timer;
 
 float player_move_speed = 0.1f;
 
-Uint32 snapshot_delay = 20000;
+Uint32 snapshot_delay = 10000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 2000;
@@ -222,6 +222,8 @@ void snapShot(float x,float y){
 }
 
 GameMode::GameMode() {
+	sock = nullptr;
+
 	camera.elevation = 1.00833f;
 	camera.azimuth = 3.15f;
 	
@@ -280,7 +282,7 @@ void GameMode::reset(int seed) {
 }
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
-	if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+	if (sock && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
 		Packet* input = new Packet();
 
 		input->payload.push_back(MessageType::INPUT);
@@ -336,6 +338,11 @@ void GameMode::update(float elapsed) {
     
 	Person::moveAll(elapsed,&collisionFramework);
 	player.move(elapsed,&collisionFramework);
+
+	if (!sock) {
+		return;
+	}
+
 	Packet* out;
 	while (sock->readQueue.try_dequeue(out)) {
 		if (!out) {
@@ -378,11 +385,19 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		glClearColor(0.0, 0.0, 0.0, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		if(isSnapshotOn){
-				snapShot(randX,randY);
+		static bool prevSnapshotOn = false;
+		static float offset = rand()*0.3f; // TODO: server will just send a coord, none of this
+		static glm::vec2 pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
+		if (!prevSnapshotOn && isSnapshotOn) { // first frame
+			offset = rand() * 0.4f + 0.1f;
+			pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
 		}
-		
-		
+		if(isSnapshotOn){
+				snapShot(pos.x, pos.y);
+				prevSnapshotOn = true;
+		} else {
+			prevSnapshotOn = false;
+		}
 		
 		glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
 		glDepthMask(GL_TRUE);
