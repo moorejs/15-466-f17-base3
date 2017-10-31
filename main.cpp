@@ -8,6 +8,7 @@
 #include "Mode.hpp"
 
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
 
 	// Initialize SDL library:
 	SDL_Init(SDL_INIT_VIDEO);
+        
 
 	// Ask for an OpenGL context version 3.3, core profile, enable debug:
 	SDL_GL_ResetAttributes();
