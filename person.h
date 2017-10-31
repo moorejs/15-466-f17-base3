@@ -20,9 +20,12 @@ public:
 	bool humanControlled;
 	bool isMoving;
 	bool isVisible;
+	bool isAI;
 	glm::vec3 pos,vel,acc;
 	Scene::Object* meshObject;
 	glm::quat rot;
+	
+	Person(){}
 	
 	Person(Scene::Object* obj){
 		meshObject = obj;
@@ -30,6 +33,7 @@ public:
 		humanControlled = false;
 		isMoving = false;
 		isVisible = true;
+		isAI = false;
 		vel = glm::vec3();
 		acc = glm::vec3();
 		placeInScene();

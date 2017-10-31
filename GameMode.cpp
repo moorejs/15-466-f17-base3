@@ -40,7 +40,8 @@ GLint word_program_Position = -1;
 //Uniform locations in staging_program:
 GLint word_program_mvp = -1;
 GLint word_program_color = -1;//color
-Scene::Object* playerObj;
+Person player;
+
 
 std::vector<std::string> random_testimonies = {"IN A RED SHIRT","WITH BROWN HAIR","WITH BLACK HAIR","WITH BLUE SHOES","IN A GRAY SUIT","WITH A BLACK WATCH","ON THE ROAD","WITH A HAT","NEAR THE STORE","WITH BLOND HAIR","WITH GLASSES"};
 
@@ -294,8 +295,8 @@ GameMode::GameMode() {
 		makeAI(obj)->placeInScene(); //Will be kept track of by class
 	}
     
-    playerObj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-    
+    Scene::Object* playerObj = add_object("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),1.2f*glm::vec3(0.012,0.012,0.012));
+    player = Person(playerObj);
     
 }
 
@@ -342,7 +343,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 	}
 
-
 	if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) {
 		if (show_menu)
 			show_menu();
@@ -354,8 +354,16 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
+
+	glm::vec3 playerVel = glm::vec3();
+	if(keys[SDL_SCANCODE_W]) playerVel += glm::vec3(1,0,0);
+	if(keys[SDL_SCANCODE_S]) playerVel += glm::vec3(-1,0,0);
+	if(keys[SDL_SCANCODE_A]) playerVel += glm::vec3(0,1,0);
+	if(keys[SDL_SCANCODE_D]) playerVel += glm::vec3(0,-1,0);
+	player.acc = playerVel;
     
 	Person::moveAll(elapsed,&collisionFramework);
+	player.move(elapsed,&collisionFramework);
 	Packet* out;
 	while (sock->readQueue.try_dequeue(out)) {
 		if (!out) {
