@@ -25,16 +25,18 @@ void Person::placeInScene(){
 	meshObject->transform.position = pos;
 }
 void Person::move(float eps,Collision* col){
-	Hit hit;
-	glm::vec2 newpt = glm::vec2(pos.x+vel.x*eps,pos.y+vel.y*eps);
-	if(col && (hit=col->checkHit(newpt)).hit){
+    if(isMoving){
+        Hit hit;
+        glm::vec2 newpt = glm::vec2(pos.x+vel.x*eps,pos.y+vel.y*eps);
+        if(col && (hit=col->checkHit(newpt)).hit){
 			vel = isAI? randVel() : glm::vec3();
-			acc = glm::vec3();
-	}else{
-		pos += vel*eps;
-		vel += acc*eps;
-		if(!isAI) vel *= 0.999;
-	}
+            acc = glm::vec3();
+        }else{
+            pos += vel*eps;
+            vel += acc*eps;
+            if(!isAI) vel *= 0.999;
+        }
 
-	meshObject->transform.position = pos;
+        meshObject->transform.position = pos;
+    }
 }

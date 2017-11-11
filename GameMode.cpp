@@ -29,10 +29,10 @@ SDL_TimerID reset_testimony_timer;
 
 float player_move_speed = 0.1f;
 
-Uint32 snapshot_delay = 10000;
+Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
-Uint32 snapshot_reset_delay = 2000;
+Uint32 snapshot_reset_delay = 4000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92,-7.107),glm::vec2(6.348,9.775)));
 
 //Attrib locations in staging_program:
@@ -42,12 +42,18 @@ GLint word_program_mvp = -1;
 GLint word_program_color = -1;//color
 Person player;
 
+static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
+
 
 std::vector<std::string> random_testimonies = {"IN A RED SHIRT","WITH BROWN HAIR","WITH BLACK HAIR","WITH BLUE SHOES","IN A GRAY SUIT","WITH A BLACK WATCH","ON THE ROAD","WITH A HAT","NEAR THE STORE","WITH BLOND HAIR","WITH GLASSES"};
 
 Uint32 resetSnapShot(Uint32 interval, void *param){
 		isSnapshotOn = false;
 		
+        Person::unfreezeAll();
+    
+        player.isMoving = true;
+    
 		SDL_RemoveTimer(reset_snapshot_timer);
 		
 		return interval;
@@ -61,6 +67,8 @@ Uint32 enableSnapShot(Uint32 interval, void *param){
 		isSnapshotOn = true;
 		
 		Person::freezeAll();
+    
+        player.isMoving = false;
 		
 		reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
 		
@@ -201,7 +209,7 @@ Load<GLVertexArray> binding(LoadTagDefault, []() {
 
 //------------------------------
 
-void snapShot(float x,float y){
+void snapShot(float x,float y, Scene *scene){
 		
 		glEnable( GL_STENCIL_TEST );
 		glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
@@ -213,6 +221,8 @@ void snapShot(float x,float y){
 		glClear(GL_STENCIL_BUFFER_BIT);
 		
 		Draw draw;
+    
+        scene->camera.fovy = glm::radians(40.0f);
 		
 		draw.add_rectangle(glm::vec2(x,y),glm::vec2(x+0.75f,y-0.75f),glm::u8vec4(0x00, 0x00, 0x00, 0xff));
 		draw.draw();
@@ -306,7 +316,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 	// temporary mouse movement for camera
 	if (e.type == SDL_MOUSEMOTION) {
-		static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
 		glm::vec2 old_mouse = mouse;
 		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
 		mouse.y = (e.motion.y + 0.5f) / float(480) *-2.0f + 1.0f;
@@ -315,7 +324,21 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
 		
-	}else if(e.type == SDL_KEYDOWN){
+	}
+    else if (e.type == SDL_MOUSEBUTTONDOWN) {
+        
+        std::cout<< mouse.x << " " << mouse.y << "\n";
+        
+        glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
+//        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
+        
+        glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x,player.pos.y,0,0);
+        
+        std::cout<< point2d.x/9.77 << " " << point2d.y/6.5 << "\n";
+        
+        //Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
+    }
+    else if(e.type == SDL_KEYDOWN){
 		if(e.key.keysym.sym == SDLK_TAB) camera.radius++;
 		//else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
 				else if(e.key.keysym.sym == SDLK_LSHIFT) std::cout<< camera.elevation << " "<< camera.azimuth << "\n";
@@ -393,7 +416,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
 		}
 		if(isSnapshotOn){
-				snapShot(pos.x, pos.y);
+				snapShot(pos.x, pos.y,&scene);
 				prevSnapshotOn = true;
 		} else {
 			prevSnapshotOn = false;

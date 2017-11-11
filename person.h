@@ -34,7 +34,7 @@ public:
 		meshObject = obj;
 		rot = obj->transform.rotation;
 		humanControlled = false;
-		isMoving = false;
+		isMoving = true;
 		isVisible = true;
 		isAI = false;
 		vel = glm::vec3();
