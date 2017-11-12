@@ -7,7 +7,7 @@
 #include "GLProgram.hpp"
 #include "GLVertexArray.hpp"
 #include <glm/glm.hpp>
-
+#include<cmath>
 
 #include <fstream>
 #include <algorithm>
@@ -26,6 +26,7 @@ SDL_TimerID snapshot_timer;
 SDL_TimerID reset_snapshot_timer;
 SDL_TimerID testimony_timer;
 SDL_TimerID reset_testimony_timer;
+SDL_TimerID reset_scale_timer;
 
 float player_move_speed = 0.1f;
 
@@ -41,6 +42,8 @@ GLint word_program_Position = -1;
 GLint word_program_mvp = -1;
 GLint word_program_color = -1;//color
 Person player;
+
+bool stealSuccess = false;
 
 static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
 
@@ -73,6 +76,16 @@ Uint32 enableSnapShot(Uint32 interval, void *param){
 		reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
 		
 		return interval;
+}
+
+Uint32 resetScales(Uint32 interval, void *param){
+    for(auto const& person : Person::people){
+        person->meshObject->transform.scale = glm::vec3(0.012f,0.012f,0.012f);
+    }
+    
+    SDL_RemoveTimer(reset_scale_timer);
+    
+    return interval;
 }
 
 
@@ -313,9 +326,32 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 								break;
 				}
 	}
-
+    
+    if(e.type == SDL_KEYDOWN){
+        switch(e.key.keysym.sym){
+            case SDLK_x:
+                for(auto const& person : Person::people){
+                    float distancex = pow(person->pos.x - player.pos.x,2.0f);
+                    float distancey = pow(person->pos.y - player.pos.y,2.0f);
+                    
+                    double calcdistance = pow(distancex + distancey,0.5f);
+                    
+                    if(calcdistance<0.4f){
+                        //person->isMoving = false;
+                        
+                        person->meshObject->transform.scale = glm::vec3(0.02f,0.02f,0.02f);
+                        
+                        reset_scale_timer = SDL_AddTimer(2000,resetScales,NULL);
+                        
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
 	// temporary mouse movement for camera
-	if (e.type == SDL_MOUSEMOTION) {
+	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
 		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
 		mouse.y = (e.motion.y + 0.5f) / float(480) *-2.0f + 1.0f;
@@ -351,6 +387,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
+    
+    std::cout<< elapsed << "\n";
 
 	glm::vec3 playerVel = glm::vec3();
 	if(keys[SDL_SCANCODE_W]) playerVel += glm::vec3(1,0,0);
