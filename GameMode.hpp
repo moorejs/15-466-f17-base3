@@ -32,6 +32,11 @@ struct GameMode : public Mode {
 	// scene + references into scene for objects:
 	Scene scene;
 
+	struct GameState {
+		float overallTimer = 0.0f;
+		float powerTimer = 0.0f;
+	} state;
+
 	// controls:
 	struct Controls {
 		SDL_Scancode left_forward;
@@ -51,7 +56,8 @@ struct GameMode : public Mode {
 
 	bool did_end = false;
 
-	Button activateSnapshot;
+	Button snapshotBtn;
+	Button anonymousTipBtn;
 
 	Socket* sock;
 };

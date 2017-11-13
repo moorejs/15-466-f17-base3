@@ -63,7 +63,7 @@ Uint32 resetSnapShot(Uint32 interval, void* param) {
 	return interval;
 }
 
-Uint32 enableSnapShot(Uint32 interval, void* param) {
+Uint32 enableSnapShot(Uint32 interval = 0, void* param = nullptr) {
 	randX = (rand() % 10 - 10) / 10.0f;
 	randY = (rand() % 10) / 10.0f;
 
@@ -96,7 +96,7 @@ Uint32 resetTestimony(Uint32 interval, void* param) {
 	return interval;
 }
 
-Uint32 showTestimony(Uint32 interval, void* param) {
+Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 	testimony_text = random_testimonies[rand() % random_testimonies.size()];
 
 	isTestimonyShowing = true;
@@ -243,9 +243,9 @@ GameMode::GameMode() {
 	camera.elevation = 1.00833f;
 	camera.azimuth = 3.15f;
 
-	snapshot_timer = SDL_AddTimer(snapshot_delay, enableSnapShot, NULL);
+	// snapshot_timer = SDL_AddTimer(snapshot_delay, enableSnapShot, NULL);
 
-	testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
+	// testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
 
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
@@ -281,6 +281,26 @@ GameMode::GameMode() {
 	collisionFramework.addBounds(BBox(glm::vec2(4.753, -2.318), glm::vec2(6.737, -0.24)));
 	collisionFramework.addBounds(BBox(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
 	collisionFramework.addBounds(BBox(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
+
+	snapshotBtn.pos = glm::vec2(-0.5f, -0.92f);
+	snapshotBtn.rad = glm::vec2(0.5f, 0.05f);
+	snapshotBtn.label = "SNAPSHOT";
+	snapshotBtn.isEnabled = [&]() { return true; };	// state.powerTimer > 30.0f };
+	snapshotBtn.onFire = [&]() {
+		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
+		enableSnapShot();
+		state.powerTimer = 0;
+	};
+
+	anonymousTipBtn.pos = glm::vec2(0.5f, -0.92f);
+	anonymousTipBtn.rad = glm::vec2(0.5f, 0.05f);
+	anonymousTipBtn.label = "ANON TIP";
+	anonymousTipBtn.isEnabled = [&]() { return true; };	// state.powerTimer > 30.0f };
+	anonymousTipBtn.onFire = [&]() {
+		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
+		showTestimony();
+		state.powerTimer = 0;
+	};
 }
 
 void GameMode::reset(int seed) {
@@ -350,21 +370,29 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
 		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
-		mouse.y = (e.motion.y + 0.5f) / float(480) * -2.0f + 1.0f;
+		mouse.y = (e.motion.y + 0.5f) / float(400) * -2.0f + 1.0f;
 		if (e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
-
+		snapshotBtn.hover = snapshotBtn.contains(mouse);
+		anonymousTipBtn.hover = anonymousTipBtn.contains(mouse);
 	} else if (e.type == SDL_MOUSEBUTTONDOWN) {
-		std::cout << mouse.x << " " << mouse.y << "\n";
+		if (snapshotBtn.hover && snapshotBtn.isEnabled()) {
+			snapshotBtn.onFire();
+		}
+		if (anonymousTipBtn.hover && anonymousTipBtn.isEnabled()) {
+			anonymousTipBtn.onFire();
+		}
 
-		glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
+		// std::cout << mouse.x << " " << mouse.y << "\n";
+
+		// glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
 		//        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
 
-		glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x, player.pos.y, 0, 0);
+		// glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x, player.pos.y, 0, 0);
 
-		std::cout << point2d.x / 9.77 << " " << point2d.y / 6.5 << "\n";
+		// std::cout << point2d.x / 9.77 << " " << point2d.y / 6.5 << "\n";
 
 		// Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
 	} else if (e.type == SDL_KEYDOWN) {
@@ -381,8 +409,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
-
-	std::cout << elapsed << "\n";
 
 	glm::vec3 playerVel = glm::vec3();
 	if (keys[SDL_SCANCODE_W])
@@ -469,9 +495,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
 																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-	static auto draw_word = [&projection](const std::string& word, float y) {
-		// character width and spacing helpers:
-		// (...in terms of the menu font's default 3-unit height)
+	// I just hacked on x centering, it's not good but I couldn't figure out the scaling
+	static auto draw_word = [&projection](const std::string& word, float x, float y) {
 		auto width = [](char a) {
 			if (a == 'I')
 				return 1.0f;
@@ -491,16 +516,18 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			total_width += width(word[i]);
 		}
 
-		float x = -0.5f * total_width;
+		static const float height = 1.0f;
+		y += -0.5f * 0.1 * height;									// center y
+		x += -0.5f * total_width * 0.1f * 0.3333f;	// center x
 		for (uint32_t i = 0; i < word.size(); ++i) {
 			if (i > 0) {
-				x += spacing(word[i], word[i - 1]);
+				x += spacing(word[i], word[i - 1]) * 0.1f * 0.3333f;
 			}
 
 			if (word[i] != ' ') {
 				float s = 0.1f * (1.0f / 3.0f);
-				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
-																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(s * x, y, 0.0f, 1.0f));
+				glm::mat4 mvp = glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
+																	glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(x, y, 0.0f, 1.0f));
 				glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 				glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
 
@@ -508,7 +535,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 			}
 
-			x += width(word[i]);
+			x += width(word[i]) * 0.1f * 0.3333f;
 		}
 	};
 
@@ -516,9 +543,12 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glBindVertexArray(word_binding->array);
 
 	if (isTestimonyShowing) {
-		draw_word("ANONYMOUS TIP", -1.25f);
-		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", -1.5f);
+		draw_word("ANONYMOUS TIP", 0.0f, -1.25f);
+		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0.0f, -1.5f);
 	}
+
+	draw_word(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
+	draw_word(anonymousTipBtn.label, anonymousTipBtn.pos.x, anonymousTipBtn.pos.y);
 
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
 	scene.camera.fovy = glm::radians(60.0f);
