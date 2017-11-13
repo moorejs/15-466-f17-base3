@@ -1,21 +1,21 @@
-#include "Draw.hpp"
 #include "GameMode.hpp"
+#include "Draw.hpp"
 
-#include "Load.hpp"
-#include "read_chunk.hpp"
-#include "MeshBuffer.hpp"
+#include <cmath>
+#include <glm/glm.hpp>
 #include "GLProgram.hpp"
 #include "GLVertexArray.hpp"
-#include <glm/glm.hpp>
-#include<cmath>
+#include "Load.hpp"
+#include "MeshBuffer.hpp"
+#include "read_chunk.hpp"
 
-#include <fstream>
 #include <algorithm>
+#include <fstream>
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include "person.h"
 #include "Collisions.h"
+#include "person.h"
 
 bool isSnapshotOn = false;
 bool isTestimonyShowing = false;
@@ -34,118 +34,112 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Collision collisionFramework = Collision(BBox(glm::vec2(-1.92,-7.107),glm::vec2(6.348,9.775)));
+Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
-//Attrib locations in staging_program:
+// Attrib locations in staging_program:
 GLint word_program_Position = -1;
-//Uniform locations in staging_program:
+// Uniform locations in staging_program:
 GLint word_program_mvp = -1;
-GLint word_program_color = -1;//color
+GLint word_program_color = -1;	// color
 Person player;
 
 bool stealSuccess = false;
 
 static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
 
+std::vector<std::string> random_testimonies = {
+		"IN A RED SHIRT", "WITH BROWN HAIR", "WITH BLACK HAIR", "WITH BLUE SHOES", "IN A GRAY SUIT", "WITH A BLACK WATCH",
+		"ON THE ROAD",		"WITH A HAT",			 "NEAR THE STORE",	"WITH BLOND HAIR", "WITH GLASSES"};
 
-std::vector<std::string> random_testimonies = {"IN A RED SHIRT","WITH BROWN HAIR","WITH BLACK HAIR","WITH BLUE SHOES","IN A GRAY SUIT","WITH A BLACK WATCH","ON THE ROAD","WITH A HAT","NEAR THE STORE","WITH BLOND HAIR","WITH GLASSES"};
+Uint32 resetSnapShot(Uint32 interval, void* param) {
+	isSnapshotOn = false;
 
-Uint32 resetSnapShot(Uint32 interval, void *param){
-		isSnapshotOn = false;
-		
-        Person::unfreezeAll();
-    
-        player.isMoving = true;
-    
-		SDL_RemoveTimer(reset_snapshot_timer);
-		
-		return interval;
+	Person::unfreezeAll();
+
+	player.isMoving = true;
+
+	SDL_RemoveTimer(reset_snapshot_timer);
+
+	return interval;
 }
 
-Uint32 enableSnapShot(Uint32 interval, void *param){
-		
-		randX = (rand()%10 - 10)/10.0f;
-		randY = (rand()%10)/10.0f;
-		
-		isSnapshotOn = true;
-		
-		Person::freezeAll();
-    
-        player.isMoving = false;
-		
-		reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay,resetSnapShot,NULL);
-		
-		return interval;
+Uint32 enableSnapShot(Uint32 interval, void* param) {
+	randX = (rand() % 10 - 10) / 10.0f;
+	randY = (rand() % 10) / 10.0f;
+
+	isSnapshotOn = true;
+
+	Person::freezeAll();
+
+	player.isMoving = false;
+
+	reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay, resetSnapShot, NULL);
+
+	return interval;
 }
 
-Uint32 resetScales(Uint32 interval, void *param){
-    for(auto const& person : Person::people){
-        person->meshObject->transform.scale = glm::vec3(0.012f,0.012f,0.012f);
-    }
-    
-    SDL_RemoveTimer(reset_scale_timer);
-    
-    return interval;
+Uint32 resetScales(Uint32 interval, void* param) {
+	for (auto const& person : Person::people) {
+		person->meshObject->transform.scale = glm::vec3(0.012f, 0.012f, 0.012f);
+	}
+
+	SDL_RemoveTimer(reset_scale_timer);
+
+	return interval;
 }
 
+Uint32 resetTestimony(Uint32 interval, void* param) {
+	isTestimonyShowing = false;
 
-Uint32 resetTestimony(Uint32 interval, void *param){
-		isTestimonyShowing = false;
-		
-		SDL_RemoveTimer(reset_testimony_timer);
-		
-		return interval;
+	SDL_RemoveTimer(reset_testimony_timer);
+
+	return interval;
 }
 
-Uint32 showTestimony(Uint32 interval, void *param){
-		
-		testimony_text = random_testimonies[rand() % random_testimonies.size()];
-		
-		
-		isTestimonyShowing = true;
-		
-		reset_testimony_timer = SDL_AddTimer(testimony_reset_delay,resetTestimony,NULL);
-		
-		return interval;
+Uint32 showTestimony(Uint32 interval, void* param) {
+	testimony_text = random_testimonies[rand() % random_testimonies.size()];
+
+	isTestimonyShowing = true;
+
+	reset_testimony_timer = SDL_AddTimer(testimony_reset_delay, resetTestimony, NULL);
+
+	return interval;
 }
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
 
-Load<MeshBuffer> word_meshes(LoadTagInit, [](){
-		return new MeshBuffer("menu.p");
+Load<MeshBuffer> word_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
+
+// Menu program itself:
+Load<GLProgram> word_program(LoadTagInit, []() {
+	GLProgram* ret = new GLProgram(
+			"#version 330\n"
+			"uniform mat4 mvp;\n"
+			"in vec4 Position;\n"
+			"void main() {\n"
+			"	gl_Position = mvp * Position;\n"
+			"}\n",
+			"#version 330\n"
+			"uniform vec3 color;\n"
+			"out vec4 fragColor;\n"
+			"void main() {\n"
+			"	fragColor = vec4(color, 1.0);\n"
+			"}\n");
+
+	word_program_Position = (*ret)("Position");
+	word_program_mvp = (*ret)["mvp"];
+	word_program_color = (*ret)["color"];
+
+	return ret;
 });
 
-//Menu program itself:
-Load<GLProgram> word_program(LoadTagInit, [](){
-		GLProgram *ret = new GLProgram(
-																	 "#version 330\n"
-																	 "uniform mat4 mvp;\n"
-																	 "in vec4 Position;\n"
-																	 "void main() {\n"
-																	 "	gl_Position = mvp * Position;\n"
-																	 "}\n"
-																	 ,
-																	 "#version 330\n"
-																	 "uniform vec3 color;\n"
-																	 "out vec4 fragColor;\n"
-																	 "void main() {\n"
-																	 "	fragColor = vec4(color, 1.0);\n"
-																	 "}\n"
-																	 );
-		
-		word_program_Position = (*ret)("Position");
-		word_program_mvp = (*ret)["mvp"];
-		word_program_color = (*ret)["color"];
-		
-		return ret;
-});
-
-//Binding for using staging_program on staging_meshes:
-Load<GLVertexArray> word_binding(LoadTagDefault, [](){
-		GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(word_program->program, {
-				{word_program_Position, word_meshes->Position},
-		}));
-		return ret;
+// Binding for using staging_program on staging_meshes:
+Load<GLVertexArray> word_binding(LoadTagDefault, []() {
+	GLVertexArray* ret = new GLVertexArray(
+			GLVertexArray::make_binding(word_program->program, {
+																														 {word_program_Position, word_meshes->Position},
+																												 }));
+	return ret;
 });
 
 // Attrib locations in game_program:
@@ -213,35 +207,34 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 
 // Binding for using game_program on meshes:
 Load<GLVertexArray> binding(LoadTagDefault, []() {
-	GLVertexArray* ret = new GLVertexArray(GLVertexArray::make_binding(game_program->program,
-																																		 {{game_program_Position, meshes->Position},
-																																			{game_program_Normal, meshes->Normal},
-																																			{game_program_Color, meshes->Color}}));
+	GLVertexArray* ret =
+			new GLVertexArray(GLVertexArray::make_binding(game_program->program, {{game_program_Position, meshes->Position},
+																																						{game_program_Normal, meshes->Normal},
+																																						{game_program_Color, meshes->Color}}));
 	return ret;
 });
 
 //------------------------------
 
-void snapShot(float x,float y, Scene *scene){
-		
-		glEnable( GL_STENCIL_TEST );
-		glColorMask( GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE );
-		glDepthMask(GL_FALSE);
-		glStencilFunc( GL_NEVER, 1, 1 );
-		glStencilOp( GL_REPLACE, GL_KEEP, GL_KEEP );
-		
-		glStencilMask(0xFF);
-		glClear(GL_STENCIL_BUFFER_BIT);
-		
-		Draw draw;
-    
-        scene->camera.fovy = glm::radians(40.0f);
-		
-		draw.add_rectangle(glm::vec2(x,y),glm::vec2(x+0.75f,y-0.75f),glm::u8vec4(0x00, 0x00, 0x00, 0xff));
-		draw.draw();
-		
-		glStencilMask(0x00);
-		glStencilFunc( GL_EQUAL, 1, 1 );
+void snapShot(float x, float y, Scene* scene) {
+	glEnable(GL_STENCIL_TEST);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_FALSE);
+	glStencilFunc(GL_NEVER, 1, 1);
+	glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
+
+	glStencilMask(0xFF);
+	glClear(GL_STENCIL_BUFFER_BIT);
+
+	Draw draw;
+
+	scene->camera.fovy = glm::radians(40.0f);
+
+	draw.add_rectangle(glm::vec2(x, y), glm::vec2(x + 0.75f, y - 0.75f), glm::u8vec4(0x00, 0x00, 0x00, 0xff));
+	draw.draw();
+
+	glStencilMask(0x00);
+	glStencilFunc(GL_EQUAL, 1, 1);
 }
 
 GameMode::GameMode() {
@@ -249,11 +242,11 @@ GameMode::GameMode() {
 
 	camera.elevation = 1.00833f;
 	camera.azimuth = 3.15f;
-	
-	snapshot_timer = SDL_AddTimer(snapshot_delay,enableSnapShot,NULL);
-	
-	testimony_timer = SDL_AddTimer(testimony_delay,showTestimony,NULL);
-	
+
+	snapshot_timer = SDL_AddTimer(snapshot_delay, enableSnapShot, NULL);
+
+	testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
+
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
 
@@ -282,12 +275,12 @@ GameMode::GameMode() {
 			}
 		}
 	}
-	//TODO: asset pipeline bounding boxes. Hard coded for now.
-	//these are the four houses
-	collisionFramework.addBounds(BBox(glm::vec2(0.719,-1.003),glm::vec2(2.763,2.991)));
-	collisionFramework.addBounds(BBox(glm::vec2(4.753,-2.318),glm::vec2(6.737,-0.24)));
-	collisionFramework.addBounds(BBox(glm::vec2(4.451,6.721),glm::vec2(9.929,8.799)));
-	collisionFramework.addBounds(BBox(glm::vec2(0.247,7.31),glm::vec2(2.397,9.986)));
+	// TODO: asset pipeline bounding boxes. Hard coded for now.
+	// these are the four houses
+	collisionFramework.addBounds(BBox(glm::vec2(0.719, -1.003), glm::vec2(2.763, 2.991)));
+	collisionFramework.addBounds(BBox(glm::vec2(4.753, -2.318), glm::vec2(6.737, -0.24)));
+	collisionFramework.addBounds(BBox(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
+	collisionFramework.addBounds(BBox(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
 }
 
 void GameMode::reset(int seed) {
@@ -296,11 +289,15 @@ void GameMode::reset(int seed) {
 	int numPlayers = 50;
 
 	Person::random = rand;
-	for (int i=0;i<numPlayers;i++) {
-		Scene::Object* obj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-		makeAI(obj)->placeInScene(); //Will be kept track of by class
+	for (int i = 0; i < numPlayers; i++) {
+		Scene::Object* obj =
+				addObject("lowman_shoes.001", glm::vec3(), glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0)),
+									glm::vec3(0.012, 0.012, 0.012));
+		makeAI(obj)->placeInScene();	// Will be kept track of by class
 	}
-	Scene::Object* playerObj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
+	Scene::Object* playerObj =
+			addObject("lowman_shoes.001", glm::vec3(), glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0)),
+								glm::vec3(0.012, 0.012, 0.012));
 	player = Person(playerObj);
 }
 
@@ -318,67 +315,64 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		input->header = input->payload.size();
 
 		sock->writeQueue.enqueue(input);
-				
-				switch(e.key.keysym.sym){
-						case SDLK_LEFT:
-								break;
-						default:
-								break;
-				}
+
+		switch (e.key.keysym.sym) {
+			case SDLK_LEFT:
+				break;
+			default:
+				break;
+		}
 	}
-    
-    if(e.type == SDL_KEYDOWN){
-        switch(e.key.keysym.sym){
-            case SDLK_x:
-                for(auto const& person : Person::people){
-                    float distancex = pow(person->pos.x - player.pos.x,2.0f);
-                    float distancey = pow(person->pos.y - player.pos.y,2.0f);
-                    
-                    double calcdistance = pow(distancex + distancey,0.5f);
-                    
-                    if(calcdistance<0.4f){
-                        //person->isMoving = false;
-                        
-                        person->meshObject->transform.scale = glm::vec3(0.02f,0.02f,0.02f);
-                        
-                        reset_scale_timer = SDL_AddTimer(2000,resetScales,NULL);
-                        
-                    }
-                }
-                break;
-            default:
-                break;
-        }
-    }
+
+	if (e.type == SDL_KEYDOWN) {
+		switch (e.key.keysym.sym) {
+			case SDLK_x:
+				for (auto const& person : Person::people) {
+					float distancex = pow(person->pos.x - player.pos.x, 2.0f);
+					float distancey = pow(person->pos.y - player.pos.y, 2.0f);
+
+					double calcdistance = pow(distancex + distancey, 0.5f);
+
+					if (calcdistance < 0.4f) {
+						// person->isMoving = false;
+
+						person->meshObject->transform.scale = glm::vec3(0.02f, 0.02f, 0.02f);
+
+						reset_scale_timer = SDL_AddTimer(2000, resetScales, NULL);
+					}
+				}
+				break;
+			default:
+				break;
+		}
+	}
 	// temporary mouse movement for camera
 	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
 		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
-		mouse.y = (e.motion.y + 0.5f) / float(480) *-2.0f + 1.0f;
+		mouse.y = (e.motion.y + 0.5f) / float(480) * -2.0f + 1.0f;
 		if (e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
-		
-	}
-    else if (e.type == SDL_MOUSEBUTTONDOWN) {
-        
-        std::cout<< mouse.x << " " << mouse.y << "\n";
-        
-        glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
-//        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
-        
-        glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x,player.pos.y,0,0);
-        
-        std::cout<< point2d.x/9.77 << " " << point2d.y/6.5 << "\n";
-        
-        //Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
-    }
-    else if(e.type == SDL_KEYDOWN){
-		if(e.key.keysym.sym == SDLK_TAB) camera.radius++;
-		//else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
-				else if(e.key.keysym.sym == SDLK_LSHIFT) std::cout<< camera.elevation << " "<< camera.azimuth << "\n";
 
+	} else if (e.type == SDL_MOUSEBUTTONDOWN) {
+		std::cout << mouse.x << " " << mouse.y << "\n";
+
+		glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
+		//        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
+
+		glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x, player.pos.y, 0, 0);
+
+		std::cout << point2d.x / 9.77 << " " << point2d.y / 6.5 << "\n";
+
+		// Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
+	} else if (e.type == SDL_KEYDOWN) {
+		if (e.key.keysym.sym == SDLK_TAB)
+			camera.radius++;
+		// else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
+		else if (e.key.keysym.sym == SDLK_LSHIFT)
+			std::cout << camera.elevation << " " << camera.azimuth << "\n";
 	}
 
 	return false;
@@ -387,18 +381,22 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
-    
-    std::cout<< elapsed << "\n";
+
+	std::cout << elapsed << "\n";
 
 	glm::vec3 playerVel = glm::vec3();
-	if(keys[SDL_SCANCODE_W]) playerVel += glm::vec3(1,0,0);
-	if(keys[SDL_SCANCODE_S]) playerVel += glm::vec3(-1,0,0);
-	if(keys[SDL_SCANCODE_A]) playerVel += glm::vec3(0,1,0);
-	if(keys[SDL_SCANCODE_D]) playerVel += glm::vec3(0,-1,0);
+	if (keys[SDL_SCANCODE_W])
+		playerVel += glm::vec3(1, 0, 0);
+	if (keys[SDL_SCANCODE_S])
+		playerVel += glm::vec3(-1, 0, 0);
+	if (keys[SDL_SCANCODE_A])
+		playerVel += glm::vec3(0, 1, 0);
+	if (keys[SDL_SCANCODE_D])
+		playerVel += glm::vec3(0, -1, 0);
 	player.acc = playerVel;
-    
-	Person::moveAll(elapsed,&collisionFramework);
-	player.move(elapsed,&collisionFramework);
+
+	Person::moveAll(elapsed, &collisionFramework);
+	player.move(elapsed, &collisionFramework);
 
 	if (!sock) {
 		return;
@@ -412,7 +410,6 @@ void GameMode::update(float elapsed) {
 		}
 
 		switch (out->payload[0]) {
-
 			default:
 				std::cout << "Unknown message from server: ";
 				for (const auto& thing : out->payload) {
@@ -420,7 +417,6 @@ void GameMode::update(float elapsed) {
 				}
 				std::cout << std::endl;
 				break;
-
 		}
 
 		delete out;
@@ -428,12 +424,11 @@ void GameMode::update(float elapsed) {
 }
 
 void GameMode::draw(glm::uvec2 const& drawable_size) {
-		
 	// camera:
-	scene.camera.transform.position = camera.radius * glm::vec3(
-		std::cos(camera.elevation) * std::cos(camera.azimuth),
-		std::cos(camera.elevation) * std::sin(camera.azimuth),
-		std::sin(camera.elevation)) + camera.target;
+	scene.camera.transform.position =
+			camera.radius * glm::vec3(std::cos(camera.elevation) * std::cos(camera.azimuth),
+																std::cos(camera.elevation) * std::sin(camera.azimuth), std::sin(camera.elevation)) +
+			camera.target;
 
 	glm::vec3 out = -glm::normalize(camera.target - scene.camera.transform.position);
 	glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -442,109 +437,100 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.camera.transform.rotation = glm::quat_cast(glm::mat3(right, up, out));
 	scene.camera.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-		
-		glClearColor(0.0, 0.0, 0.0, 0.0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-		static bool prevSnapshotOn = false;
-		static float offset = rand()*0.3f; // TODO: server will just send a coord, none of this
-		static glm::vec2 pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
-		if (!prevSnapshotOn && isSnapshotOn) { // first frame
-			offset = rand() * 0.4f + 0.1f;
-			pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
-		}
-		if(isSnapshotOn){
-				snapShot(pos.x, pos.y,&scene);
-				prevSnapshotOn = true;
-		} else {
-			prevSnapshotOn = false;
-		}
-		
-		glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
-		glDepthMask(GL_TRUE);
-		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
-	scene.render();
-		
-		float aspect = drawable_size.x / float(drawable_size.y);
-		//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
-		glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
-		glm::mat4 projection = glm::mat4(
-																		 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
-																		 glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-																		 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-																		 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-																		 );
-		
-		static auto draw_word = [&projection](const std::string& word, float y) {
-				//character width and spacing helpers:
-				// (...in terms of the menu font's default 3-unit height)
-				auto width = [](char a) {
-						if (a == 'I') return 1.0f;
-						else if (a == 'L') return 2.0f;
-						else if (a == 'M' || a == 'W') return 4.0f;
-						else return 3.0f;
-				};
-				auto spacing = [](char a, char b) {
-						return 1.0f;
-				};
-				
-				float total_width = 0.0f;
-				for (uint32_t i = 0; i < word.size(); ++i) {
-						if (i > 0) total_width += spacing(word[i-1], word[i]);
-						total_width += width(word[i]);
-				}
-				
-				float x = -0.5f * total_width;
-				for (uint32_t i = 0; i < word.size(); ++i) {
-						if (i > 0) {
-								x += spacing(word[i], word[i-1]);
-						}
-						
-						if (word[i] != ' ') {
-								float s = 0.1f * (1.0f / 3.0f);
-								glm::mat4 mvp = projection * glm::mat4(
-																											 glm::vec4(s, 0.0f, 0.0f, 0.0f),
-																											 glm::vec4(0.0f, s, 0.0f, 0.0f),
-																											 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-																											 glm::vec4(s * x, y, 0.0f, 1.0f)
-																											 );
-								glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-								glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
-								
-								MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
-								glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-						}
-						
-						x += width(word[i]);
-				}
-		};
 
-		
-		glUseProgram(word_program->program);
-		glBindVertexArray(word_binding->array);
-		
-		
-		if(isTestimonyShowing){
-				draw_word("ANONYMOUS TIP", -1.25f);
-				draw_word("SUSPICIOUS PERSON "+testimony_text+" REPORTED", -1.5f);
+	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	static bool prevSnapshotOn = false;
+	static float offset = rand() * 0.3f;	// TODO: server will just send a coord, none of this
+	static glm::vec2 pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
+	if (!prevSnapshotOn && isSnapshotOn) {	// first frame
+		offset = rand() * 0.4f + 0.1f;
+		pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
+	}
+	if (isSnapshotOn) {
+		snapShot(pos.x, pos.y, &scene);
+		prevSnapshotOn = true;
+	} else {
+		prevSnapshotOn = false;
+	}
+
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glDepthMask(GL_TRUE);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	scene.render();
+
+	float aspect = drawable_size.x / float(drawable_size.y);
+	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
+	glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
+	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+	static auto draw_word = [&projection](const std::string& word, float y) {
+		// character width and spacing helpers:
+		// (...in terms of the menu font's default 3-unit height)
+		auto width = [](char a) {
+			if (a == 'I')
+				return 1.0f;
+			else if (a == 'L')
+				return 2.0f;
+			else if (a == 'M' || a == 'W')
+				return 4.0f;
+			else
+				return 3.0f;
+		};
+		auto spacing = [](char a, char b) { return 1.0f; };
+
+		float total_width = 0.0f;
+		for (uint32_t i = 0; i < word.size(); ++i) {
+			if (i > 0)
+				total_width += spacing(word[i - 1], word[i]);
+			total_width += width(word[i]);
 		}
-		
-		
-		scene.camera.aspect = drawable_size.x / float(drawable_size.y);
-		scene.camera.fovy = glm::radians(60.0f);
-		scene.camera.near = 0.01f;
-		
-		
-		
-		glDisable(GL_STENCIL_TEST);
-		
-		
+
+		float x = -0.5f * total_width;
+		for (uint32_t i = 0; i < word.size(); ++i) {
+			if (i > 0) {
+				x += spacing(word[i], word[i - 1]);
+			}
+
+			if (word[i] != ' ') {
+				float s = 0.1f * (1.0f / 3.0f);
+				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
+																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(s * x, y, 0.0f, 1.0f));
+				glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+				glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
+
+				MeshBuffer::Mesh const& mesh = word_meshes->lookup(word.substr(i, 1));
+				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+			}
+
+			x += width(word[i]);
+		}
+	};
+
+	glUseProgram(word_program->program);
+	glBindVertexArray(word_binding->array);
+
+	if (isTestimonyShowing) {
+		draw_word("ANONYMOUS TIP", -1.25f);
+		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", -1.5f);
+	}
+
+	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
+	scene.camera.fovy = glm::radians(60.0f);
+	scene.camera.near = 0.01f;
+
+	glDisable(GL_STENCIL_TEST);
 }
 
-Scene::Object* GameMode::addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation, glm::vec3 const& scale) {
+Scene::Object* GameMode::addObject(std::string const& name,
+																	 glm::vec3 const& position,
+																	 glm::quat const& rotation,
+																	 glm::vec3 const& scale) {
 	scene.objects.emplace_back();
 	Scene::Object& object = scene.objects.back();
 	object.transform.position = position;
