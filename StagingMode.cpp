@@ -68,7 +68,7 @@ StagingMode::StagingMode() {
 
 	glm::vec3 btnColor = glm::vec3(0.75f, 0.0f, 0.0f);
 
-	StagingMode::Button cop;
+	Button cop;
 	cop.color = btnColor;
 	cop.pos = glm::vec2(-0.5f, 0.65f);
 	cop.rad = glm::vec2(0.4f, 0.1f);
@@ -83,7 +83,7 @@ StagingMode::StagingMode() {
 		// just accept latency.. stagingState.players[stagingState.playerId].role = StagingState::Role::COP;
 	};
 
-	StagingMode::Button robber;
+	Button robber;
 	robber.color = btnColor;
 	robber.pos = glm::vec2(0.5f, 0.65f);
 	robber.rad = glm::vec2(0.4f, 0.1f);
@@ -96,7 +96,7 @@ StagingMode::StagingMode() {
 		// accepting latency for now.. stagingState.players[stagingState.playerId].role = StagingState::Role::ROBBER;
 	};
 
-	StagingMode::Button start;
+	Button start;
 	start.color = btnColor;
 	start.pos = glm::vec2(0.0f, -0.35f);
 	start.rad = glm::vec2(0.75f, 0.1f);

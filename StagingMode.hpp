@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Mode.hpp"
-#include "Socket.hpp"
 #include "Random.hpp"
+#include "Socket.hpp"
+#include "ui/Button.hpp"
 
 #include <memory>
 #include <random>
@@ -23,9 +24,7 @@ struct StagingMode : public Mode {
 
 	std::mt19937 twister;
 	UniformRealDistribution<float> dist;
-	std::function<float()> rand = [&]() -> float {
-		return dist(twister);
-	};
+	std::function<float()> rand = [&]() -> float { return dist(twister); };
 
 	struct StagingState {
 		enum Role {
@@ -40,30 +39,14 @@ struct StagingMode : public Mode {
 			Role role;
 		};
 
-		Client* player; // no ownership
-		Client* robber; // no ownership
+		Client* player;	// no ownership
+		Client* robber;	// no ownership
 		int undecided;
 		std::unordered_map<int, std::unique_ptr<Client>> players;
 		bool starting;
 
 	} stagingState;
 
-	// temp, will move this
-	struct Button {
-		glm::vec2 pos;
-		glm::vec2 rad;
-		std::string label;
-		glm::vec3 color;
-		bool hover = false;
-
-		std::function<bool()> isEnabled;
-		std::function<void()> onFire;
-
-		bool contains(const glm::vec2& point) const {
-			return point.x > pos.x - rad.x && point.x < pos.x + rad.x
-			 	&& point.y > pos.y - rad.y && point.y < pos.y + rad.y;
-		}
-	};
 	std::vector<Button> buttons;
 
 	std::function<void(Socket*, int)> enterGame;
