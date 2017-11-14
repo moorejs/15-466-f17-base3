@@ -35,7 +35,7 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Uint32 game_time = 5000;
+Uint32 game_time = 120000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
