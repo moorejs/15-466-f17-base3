@@ -404,13 +404,14 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 				break;
 		}
 	}
-
-    Person closestPerson;
+    
     double minDistance = 1000;
+    auto *closestPerson = new Person;
     
 	if (e.type == SDL_KEYDOWN) {
 		switch (e.key.keysym.sym) {
 			case SDLK_x:
+                
                 
 				for (auto person : Person::people) {
 					float distancex = pow(person->pos.x - player.pos.x, 2.0f);
@@ -419,14 +420,14 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 					double calcdistance = pow(distancex + distancey, 0.5f);
                     
                     if(calcdistance<minDistance){
-                        closestPerson = *person;
+                        closestPerson = &*person;
                         minDistance = calcdistance;
                     }
 					
 				}
                 
                 if(minDistance<0.4f){
-                    closestPerson.meshObject.transform.scale = glm::vec3(0.02f, 0.02f, 0.02f);
+                    closestPerson->meshObject.transform.scale = glm::vec3(0.02f, 0.02f, 0.02f);
                     reset_scale_timer = SDL_AddTimer(2000, resetScales, NULL);
                 }
                 
