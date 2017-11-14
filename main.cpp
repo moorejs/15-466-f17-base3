@@ -18,7 +18,11 @@
 #include <memory>
 #include <stdexcept>
 
+#include "Sounds.h"
+
 int main(int argc, char** argv) {
+	Sound::init(argc, argv);
+
 	// Configuration:
 	struct {
 		std::string title = "Odd One Out";
@@ -175,6 +179,7 @@ int main(int argc, char** argv) {
 
 	SDL_DestroyWindow(window);
 	window = NULL;
+	Sound::cleanup();
 
 	return 0;
 }

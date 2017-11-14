@@ -41,7 +41,7 @@ if $(OS) = NT {
 	KIT_LIBS = kit-libs-linux ;
 	C++ = g++ ;
 	C++FLAGS =
-		-std=c++14 -g -Wall -Werror
+		-std=c++14 -g -Wall -Werror 
 		-I$(KIT_LIBS)/libpng/include                           #libpng
 		-I$(KIT_LIBS)/glm/include                              #glm
 		`PATH=$(KIT_LIBS)/SDL2/bin:$PATH sdl2-config --cflags` #SDL2
@@ -49,6 +49,7 @@ if $(OS) = NT {
 	LINK = g++ ;
 	LINKFLAGS = -std=c++11 -g -Wall -Werror ;
 	LINKLIBS =
+		-lopenal -lalut
 		-L$(KIT_LIBS)/libpng/lib -lpng                      #libpng
 		-L$(KIT_LIBS)/zlib/lib -lz                          #zlib
 		`PATH=$(KIT_LIBS)/SDL2/bin:$PATH sdl2-config --static-libs` -lGL #SDL2
@@ -71,6 +72,7 @@ NAMES =
 	GameMode
 	StagingMode
 	Draw
+	Sounds
 	;
 
 if $(OS) = NT {

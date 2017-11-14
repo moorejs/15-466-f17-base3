@@ -16,6 +16,7 @@
 
 #include "Collisions.h"
 #include "person.h"
+#include "Sounds.h"
 
 
 
@@ -334,9 +335,12 @@ GameMode::GameMode() {
 	};
 }
 
+//https://www.bensound.com/royalty-free-music/track/summer
+Sound bgmusic;
 void GameMode::reset(int seed) {
 	twister.seed(seed);
-
+	bgmusic = Sound("../sounds/bensound-summer.wav",true);
+	bgmusic.play();
 	int numPlayers = 200;
 
 	Person::random = rand;
