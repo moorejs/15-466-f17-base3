@@ -37,7 +37,7 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Uint32 game_time = 120000;
+Uint32 game_time = 2000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
@@ -48,6 +48,10 @@ GLint word_program_color = -1;	// color
 Person player;
 
 Person cop;
+
+std::string endGameTxt = "";
+
+bool gameResultPosted;
 
 bool gameEnded = false;
 
@@ -118,7 +122,7 @@ Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 }
 
 void spawnCop(){
-    cop.meshObject.transform.scale = 0.016f*glm::vec3(1,1,1);
+    cop.meshObject.transform.scale = 0.018f*glm::vec3(1,1,1);
     cop.meshObject.transform.position = glm::vec3(-1.0f,5.5f,0.0f);
     cop.isMoving = true;
 }
@@ -455,19 +459,22 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 				break;
             case SDLK_SPACE:
                 //Catch thief
-                if(gameEnded){
+                if(gameEnded && !gameResultPosted){
                     float distancex = pow(cop.pos.x - player.pos.x, 2.0f);
                     float distancey = pow(cop.pos.y - player.pos.y, 2.0f);
                     
                     double calcdistance = pow(distancex + distancey, 0.5f);
                     
+                    gameResultPosted = true;
+                    
                     if(calcdistance<0.3f){
-                        player.meshObject.transform.scale = 0.016f*glm::vec3(1,1,1);
-                        std::cout<< "Thief Found" << "\n";
+                        endGameTxt = "THIEF IDENTIFIED";
                     }
                     else{
-                        std::cout<< "Thief NOT Found. Cops lose!" << "\n";
+                        endGameTxt = "COPS LOST";
                     }
+                    
+                    player.meshObject.transform.scale = 0.018f*glm::vec3(1,1,1);
                 }
                 //DEPLOY COP
                 else{
@@ -714,6 +721,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	}
 	draw_word_xy(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
 	draw_word_xy(anonymousTipBtn.label,  anonymousTipBtn.pos.x,anonymousTipBtn.pos.y);
+    
+    if(gameResultPosted){
+        draw_word_xy(endGameTxt,0,-0.7f);
+    }
 	
 	
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
