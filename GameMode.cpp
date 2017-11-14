@@ -27,6 +27,7 @@ SDL_TimerID reset_snapshot_timer;
 SDL_TimerID testimony_timer;
 SDL_TimerID reset_testimony_timer;
 SDL_TimerID reset_scale_timer;
+SDL_TimerID game_timer;
 
 float player_move_speed = 0.1f;
 
@@ -34,6 +35,7 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
+Uint32 game_time = 120000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
@@ -42,6 +44,8 @@ GLint word_program_Position = -1;
 GLint word_program_mvp = -1;
 GLint word_program_color = -1;	// color
 Person player;
+
+bool gameEnded = false;
 
 bool stealSuccess = false;
 
@@ -54,9 +58,11 @@ std::vector<std::string> random_testimonies = {
 Uint32 resetSnapShot(Uint32 interval, void* param) {
 	isSnapshotOn = false;
 
-	Person::unfreezeAll();
-
-	player.isMoving = true;
+    
+    if(!gameEnded){
+        Person::unfreezeAll();
+        player.isMoving = true;
+    }
 
 	SDL_RemoveTimer(reset_snapshot_timer);
 
@@ -64,17 +70,18 @@ Uint32 resetSnapShot(Uint32 interval, void* param) {
 }
 
 Uint32 enableSnapShot(Uint32 interval = 0, void* param = nullptr) {
-	randX = (rand() % 10 - 10) / 10.0f;
-	randY = (rand() % 10) / 10.0f;
+    if(!gameEnded){
+        randX = (rand() % 10 - 10) / 10.0f;
+        randY = (rand() % 10) / 10.0f;
 
-	isSnapshotOn = true;
+        isSnapshotOn = true;
 
-	Person::freezeAll();
+        Person::freezeAll();
 
-	player.isMoving = false;
+        player.isMoving = false;
 
-	reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay, resetSnapShot, NULL);
-
+        reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay, resetSnapShot, NULL);
+    }
 	return interval;
 }
 
@@ -104,6 +111,19 @@ Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 	reset_testimony_timer = SDL_AddTimer(testimony_reset_delay, resetTestimony, NULL);
 
 	return interval;
+}
+
+
+Uint32 endGame(Uint32 interval = 0, void* param = nullptr) {
+    
+    gameEnded = true;
+    Person::freezeAll();
+    
+    player.isMoving = false;
+    
+    SDL_RemoveTimer(game_timer);
+    
+    return interval;
 }
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
@@ -217,24 +237,26 @@ Load<GLVertexArray> binding(LoadTagDefault, []() {
 //------------------------------
 
 void snapShot(float x, float y, Scene* scene) {
-	glEnable(GL_STENCIL_TEST);
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_FALSE);
-	glStencilFunc(GL_NEVER, 1, 1);
-	glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
+    if(!gameEnded){
+        glEnable(GL_STENCIL_TEST);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glDepthMask(GL_FALSE);
+        glStencilFunc(GL_NEVER, 1, 1);
+        glStencilOp(GL_REPLACE, GL_KEEP, GL_KEEP);
 
-	glStencilMask(0xFF);
-	glClear(GL_STENCIL_BUFFER_BIT);
+        glStencilMask(0xFF);
+        glClear(GL_STENCIL_BUFFER_BIT);
 
-	Draw draw;
+        Draw draw;
 
-	scene->camera.fovy = glm::radians(40.0f);
+        scene->camera.fovy = glm::radians(40.0f);
 
-	draw.add_rectangle(glm::vec2(x, y), glm::vec2(x + 0.75f, y - 0.75f), glm::u8vec4(0x00, 0x00, 0x00, 0xff));
-	draw.draw();
+        draw.add_rectangle(glm::vec2(x, y), glm::vec2(x + 0.75f, y - 0.75f), glm::u8vec4(0x00, 0x00, 0x00, 0xff));
+        draw.draw();
 
-	glStencilMask(0x00);
-	glStencilFunc(GL_EQUAL, 1, 1);
+        glStencilMask(0x00);
+        glStencilFunc(GL_EQUAL, 1, 1);
+    }
 }
 
 GameMode::GameMode() {
@@ -246,6 +268,8 @@ GameMode::GameMode() {
 	// snapshot_timer = SDL_AddTimer(snapshot_delay, enableSnapShot, NULL);
 
 	// testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
+    
+    game_timer = SDL_AddTimer(game_time, endGame, NULL);
 
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
@@ -384,17 +408,16 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		if (anonymousTipBtn.hover && anonymousTipBtn.isEnabled()) {
 			anonymousTipBtn.onFire();
 		}
+////
+//		glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
+//		glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
+//
+//        glm::vec4 point2d = scene.camera.make_projection() * glm::vec4(player.pos.x, player.pos.y, 0, 1);
 
-		// std::cout << mouse.x << " " << mouse.y << "\n";
+//        int winX =  (((point2d.x + 1) * 320) - 0.5f);
+//        int winY =  (((point2d.y - 1) * -200) - 0.5f);
+//        std::cout << winX << " " << winY << "\n";
 
-		// glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
-		//        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
-
-		// glm::vec4 point2d = world_to_camera * glm::vec4(player.pos.x, player.pos.y, 0, 0);
-
-		// std::cout << point2d.x / 9.77 << " " << point2d.y / 6.5 << "\n";
-
-		// Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
 	} else if (e.type == SDL_KEYDOWN) {
 		if (e.key.keysym.sym == SDLK_TAB)
 			camera.radius++;
@@ -490,11 +513,13 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	scene.render();
 
 	float aspect = drawable_size.x / float(drawable_size.y);
+    
 	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 	glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
 	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
 																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
+    
 	// I just hacked on x centering, it's not good but I couldn't figure out the scaling
 	static auto draw_word = [&projection](const std::string& word, float x, float y) {
 		auto width = [](char a) {
