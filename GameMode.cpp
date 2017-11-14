@@ -27,7 +27,8 @@ SDL_TimerID reset_snapshot_timer;
 SDL_TimerID testimony_timer;
 SDL_TimerID reset_testimony_timer;
 SDL_TimerID reset_scale_timer;
-SDL_TimerID game_timer;
+time_t game_start_time;
+float game_duration = 120;
 
 float player_move_speed = 0.1f;
 
@@ -35,7 +36,6 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Uint32 game_time = 120000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
@@ -46,6 +46,10 @@ GLint word_program_color = -1;	// color
 Person player;
 
 Person cop;
+
+std::string endGameTxt = "";
+
+bool gameResultPosted;
 
 bool gameEnded = false;
 
@@ -115,22 +119,9 @@ Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 }
 
 void spawnCop() {
-	cop.meshObject.transform.scale = 0.016f * glm::vec3(1, 1, 1);
+	cop.meshObject.transform.scale = 0.018f * glm::vec3(1, 1, 1);
 	cop.meshObject.transform.position = glm::vec3(-1.0f, 5.5f, 0.0f);
 	cop.isMoving = true;
-}
-
-Uint32 endGame(Uint32 interval = 0, void* param = nullptr) {
-	gameEnded = true;
-	Person::freezeAll();
-
-	player.isMoving = false;
-
-	SDL_RemoveTimer(game_timer);
-
-	spawnCop();
-
-	return interval;
 }
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
@@ -282,7 +273,7 @@ GameMode::GameMode() {
 
 	// testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
 
-	game_timer = SDL_AddTimer(game_time, endGame, NULL);
+	time(&game_start_time);
 
 	{	// read scene:
 		std::ifstream file("city.scene", std::ios::binary);
@@ -345,7 +336,7 @@ GameMode::GameMode() {
 void GameMode::reset(const GameSettings& settings) {
 	twister.seed(settings.seed);
 
-	int numPlayers = 50;
+	int numPlayers = 200;
 
 	Person::random = rand;
 	MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
@@ -401,6 +392,15 @@ Scene::Object* GameMode::addObject(std::string const& name,
 
 	object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
 	return &object;
+}
+
+void GameMode::endGame() {
+	if (gameEnded)
+		return;
+	gameEnded = true;
+	Person::freezeAll();
+	player.isMoving = false;
+	spawnCop();
 }
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
@@ -537,13 +537,22 @@ void GameMode::update(float elapsed) {
 	};
 
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
-	player.vel = move(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D], keys[SDL_SCANCODE_S]);
+	glm::vec3 vel = move(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D], keys[SDL_SCANCODE_S]);
+
+	if (gameEnded)
+		cop.vel = vel;
+	else
+		player.vel = vel;
 
 	Person::moveAll(elapsed, &collisionFramework);
 	player.move(elapsed, &collisionFramework);
-	cop.vel = move(keys[SDL_SCANCODE_UP] && gameEnded, keys[SDL_SCANCODE_LEFT] && gameEnded,
-								 keys[SDL_SCANCODE_RIGHT] && gameEnded, keys[SDL_SCANCODE_DOWN] && gameEnded);
 	cop.move(elapsed, &collisionFramework);
+
+	time_t curtime;
+	time(&curtime);
+	if (!gameEnded && difftime(curtime, game_start_time) > game_duration) {
+		endGame();
+	}
 
 	if (!sock) {
 		return;
@@ -656,7 +665,9 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
 	};
-	static auto draw_word = [&projection](const std::string& word, float y) {
+
+	static auto draw_word = [&projection](const std::string& word, float init_x, float y, float fontSize = 1.f,
+																				glm::vec3 color = glm::vec3(1, 1, 1)) {
 		// character width and spacing helpers:
 		// (...in terms of the menu font's default 3-unit height)
 		auto width = [](char a) {
@@ -685,54 +696,12 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			}
 
 			if (word[i] != ' ') {
-				float s = 0.1f * (1.0f / 3.0f);
-				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
-																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(s * x, y, 0.0f, 1.0f));
-				glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(word_program_color, 1.0f, 1.0f, 1.0f);
-
-				MeshBuffer::Mesh const& mesh = word_meshes->lookup(word.substr(i, 1));
-				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-			}
-
-			x += width(word[i]);
-		}
-	};
-	static auto draw_word_xy = [&projection](const std::string& word, float init_x, float y) {
-		// character width and spacing helpers:
-		// (...in terms of the menu font's default 3-unit height)
-		auto width = [](char a) {
-			if (a == 'I')
-				return 1.0f;
-			else if (a == 'L')
-				return 2.0f;
-			else if (a == 'M' || a == 'W')
-				return 4.0f;
-			else
-				return 3.0f;
-		};
-		auto spacing = [](char a, char b) { return 1.0f; };
-
-		float total_width = 0.0f;
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0)
-				total_width += spacing(word[i - 1], word[i]);
-			total_width += width(word[i]);
-		}
-
-		float x = -0.5f * total_width;
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0) {
-				x += spacing(word[i], word[i - 1]);
-			}
-
-			if (word[i] != ' ') {
-				float s = 0.1f * (1.0f / 3.0f);
+				float s = fontSize * 0.1f * (1.0f / 3.0f);
 				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
 																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
 																							 glm::vec4(2 * init_x + s * x, 2 * y + 0.1, 0.0f, 1.0f));
 				glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(word_program_color, 1.0f, 1.0f, 1.0f);
+				glUniform3f(word_program_color, color.r, color.g, color.b);
 
 				MeshBuffer::Mesh const& mesh = word_meshes->lookup(word.substr(i, 1));
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
@@ -743,13 +712,41 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	};
 
 	if (isTestimonyShowing) {
-		draw_word("ANONYMOUS TIP", -1.25f);
-		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", -1.5f);
+		draw_word("ANONYMOUS TIP", 0, -1.25f);
+		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -1.5f);
 	}
+
+	time_t curtime;
+	time(&curtime);
+	int secondsRemaining = gameEnded ? 0 : game_duration - int(difftime(curtime, game_start_time));
+	char timeString[1000];
+	if (secondsRemaining <= 0)
+		sprintf(timeString, "TIME IS UP");
+	else if (secondsRemaining > 100)
+		sprintf(timeString, "HUNDRED TWENTY SECONDS LEFT");
+	else if (secondsRemaining > 80)
+		sprintf(timeString, "HUNDRED SECONDS LEFT");
+	else if (secondsRemaining > 60)
+		sprintf(timeString, "EIGHTY SECONDS LEFT");
+	else if (secondsRemaining > 40)
+		sprintf(timeString, "SIXTY SECONDS LEFT");
+	else if (secondsRemaining > 20)
+		sprintf(timeString, "FORTY SECONDS LEFT");
+	else if (secondsRemaining > 10)
+		sprintf(timeString, "TWENTY SECONDS LEFT");
+	else {
+		static char digits[10][32] = {"ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN"};
+		sprintf(timeString, "%s SECONDS LEFT", digits[secondsRemaining - 1]);
+	}
+
+	draw_word(timeString, 0.9, 0.8, 0.8, glm::vec3(0.4, 0.6, 0.6));
 	draw_button(snapshotBtn);
 	draw_button(anonymousTipBtn);
-	draw_word_xy(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
-	draw_word_xy(anonymousTipBtn.label, anonymousTipBtn.pos.x, anonymousTipBtn.pos.y);
+	draw_word(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
+	draw_word(anonymousTipBtn.label, anonymousTipBtn.pos.x, anonymousTipBtn.pos.y);
+	if (gameResultPosted) {
+		draw_word(endGameTxt, 0, -0.7f);
+	}
 
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
 	scene.camera.fovy = glm::radians(60.0f);

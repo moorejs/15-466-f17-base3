@@ -24,6 +24,7 @@ struct GameMode : public Mode {
 	virtual void draw(glm::uvec2 const& drawable_size) override;
 
 	void reset(const GameSettings& settings);	// reset the game state
+	void endGame();
 
 	Scene::Object* addObject(std::string const& name,
 													 glm::vec3 const& position,
