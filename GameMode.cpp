@@ -80,7 +80,7 @@ Uint32 enableSnapShot(Uint32 interval, void *param){
 
 Uint32 resetScales(Uint32 interval, void *param){
     for(auto const& person : Person::people){
-        person->meshObject->transform.scale = glm::vec3(0.012f,0.012f,0.012f);
+        person->meshObject.transform.scale = glm::vec3(0.012f,0.012f,0.012f);
     }
     
     SDL_RemoveTimer(reset_scale_timer);
@@ -118,21 +118,21 @@ Load<MeshBuffer> word_meshes(LoadTagInit, [](){
 //Menu program itself:
 Load<GLProgram> word_program(LoadTagInit, [](){
 		GLProgram *ret = new GLProgram(
-																	 "#version 330\n"
-																	 "uniform mat4 mvp;\n"
-																	 "in vec4 Position;\n"
-																	 "void main() {\n"
-																	 "	gl_Position = mvp * Position;\n"
-																	 "}\n"
-																	 ,
-																	 "#version 330\n"
-																	 "uniform vec3 color;\n"
-																	 "out vec4 fragColor;\n"
-																	 "void main() {\n"
-																	 "	fragColor = vec4(color, 1.0);\n"
-																	 "}\n"
-																	 );
-		
+						 "#version 330\n"
+						 "uniform mat4 mvp;\n"
+						 "in vec4 Position;\n"
+						 "void main() {\n"
+						 "	gl_Position = mvp * Position;\n"
+						 "}\n"
+						 ,
+						 "#version 330\n"
+						 "uniform vec3 color;\n"
+						 "out vec4 fragColor;\n"
+						 "void main() {\n"
+						 "	fragColor = vec4(color, 1.0);\n"
+						 "}\n"
+						 );
+
 		word_program_Position = (*ret)("Position");
 		word_program_mvp = (*ret)["mvp"];
 		word_program_color = (*ret)["color"];
@@ -142,10 +142,10 @@ Load<GLProgram> word_program(LoadTagInit, [](){
 
 //Binding for using staging_program on staging_meshes:
 Load<GLVertexArray> word_binding(LoadTagDefault, [](){
-		GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(word_program->program, {
-				{word_program_Position, word_meshes->Position},
-		}));
-		return ret;
+	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(word_program->program, {
+			{word_program_Position, word_meshes->Position},
+	}));
+	return ret;
 });
 
 // Attrib locations in game_program:
@@ -153,6 +153,7 @@ GLint game_program_Position = -1;
 GLint game_program_Normal = -1;
 GLint game_program_Color = -1;
 // Uniform locations in game_program:
+GLint game_program_index = -1;
 GLint game_program_mvp = -1;
 GLint game_program_mv = -1;
 GLint game_program_itmv = -1;
@@ -162,9 +163,11 @@ GLint game_program_roughness = -1;
 Load<GLProgram> game_program(LoadTagInit, []() {
 	GLProgram* ret = new GLProgram(
 			"#version 330\n"
-			"uniform mat4 mvp;\n"		// model positions to clip space
+			"uniform mat4 mvp;\n"	// model positions to clip space
 			"uniform mat4x3 mv;\n"	// model positions to lighting space
 			"uniform mat3 itmv;\n"	// model normals to lighting space
+			"uniform int index;\n" //person class idx
+			"uniform vec3 people_colors[" NUM_PLAYER_CLASSES_STR "];\n"
 			"in vec4 Position;\n"
 			"in vec3 Normal;\n"
 			"in vec3 Color;\n"
@@ -175,7 +178,7 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 			"	gl_Position = mvp * Position;\n"
 			"	position = mv * Position;\n"
 			"	normal = itmv * Normal;\n"
-			"	color = Color;\n"
+			"	color = (index>=0)? people_colors[index] : Color;\n"
 			"}\n",
 			"#version 330\n"
 			"in vec3 color;\n"
@@ -190,9 +193,9 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 			"	l = normalize(mix(l, n, 0.2));\n"	// fake hemisphere light w/ normal bending
 			"	vec3 h = normalize(n+l);\n"
 			"	vec3 reflectance = \n"
-			"		color.rgb\n"																					 // Lambertain Diffuse
-			"		+ pow(max(0.0, dot(n, h)), shininess)\n"							 // Blinn-Phong Specular
-			"		* (shininess + 2.0) / (8.0)\n"												 // normalization factor (tweaked for hemisphere)
+			"		color.rgb\n"   // Lambertain Diffuse
+			"		+ pow(max(0.0, dot(n, h)), shininess)\n" // Blinn-Phong Specular
+			"		* (shininess + 2.0) / (8.0)\n"// normalization factor (tweaked for hemisphere)
 			"		* (0.04 + (1.0 - 0.04) * pow(1.0 - dot(l,h), 5.0))\n"	// Schlick's approximation for Fresnel reflectance
 			"	;\n"
 			"	vec3 lightEnergy = vec3(1.0);\n"
@@ -204,19 +207,21 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 	game_program_Normal = ret->getAttribLocation("Normal", GLProgram::MissingIsWarning);
 	game_program_Color = ret->getAttribLocation("Color", GLProgram::MissingIsWarning);
 	game_program_mvp = (*ret)["mvp"];
+	game_program_index = ret->getUniformLocation("index",GLProgram::MissingIsWarning);
 	game_program_mv = ret->getUniformLocation("mv", GLProgram::MissingIsWarning);
 	game_program_itmv = ret->getUniformLocation("itmv", GLProgram::MissingIsWarning);
 	game_program_roughness = (*ret)["roughness"];
-
+	Person::personIdx = ret->getUniformLocation("index",GLProgram::MissingIsWarning);
+	Person::colors = ret->getUniformLocation("people_colors",GLProgram::MissingIsWarning);
 	return ret;
 });
 
 // Binding for using game_program on meshes:
 Load<GLVertexArray> binding(LoadTagDefault, []() {
 	GLVertexArray* ret = new GLVertexArray(GLVertexArray::make_binding(game_program->program,
-																																		 {{game_program_Position, meshes->Position},
-																																			{game_program_Normal, meshes->Normal},
-																																			{game_program_Color, meshes->Color}}));
+							 {{game_program_Position, meshes->Position},
+								{game_program_Normal, meshes->Normal},
+								{game_program_Color, meshes->Color}}));
 	return ret;
 });
 
@@ -296,12 +301,47 @@ void GameMode::reset(int seed) {
 	int numPlayers = 50;
 
 	Person::random = rand;
-	for (int i=0;i<numPlayers;i++) {
-		Scene::Object* obj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-		makeAI(obj)->placeInScene(); //Will be kept track of by class
+	MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
+	for (int i=0;i<=numPlayers;i++) {
+		Person* cur;
+		if(i==numPlayers){
+			player = Person();
+			cur = &player;
+		}else cur = makeAI();
+		cur->meshObject.transform.rotation = glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0));
+		cur->meshObject.transform.scale = 0.012f*glm::vec3(1,1,1);
+
+		cur->meshObject.program = game_program->program;
+		cur->meshObject.program_mvp = game_program_mvp;
+		cur->meshObject.program_mv = game_program_mv;
+		cur->meshObject.program_itmv = game_program_itmv;
+		cur->meshObject.vao = binding->array;
+		cur->meshObject.start = mesh.start;
+		cur->meshObject.count = mesh.count;
+		cur->meshObject.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
+		cur->placeInScene((i==numPlayers)? NULL : &collisionFramework);
 	}
-	Scene::Object* playerObj = addObject("lowman_shoes.001",glm::vec3(),glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0)),glm::vec3(0.012,0.012,0.012));
-	player = Person(playerObj);
+}
+
+Scene::Object* GameMode::addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation, glm::vec3 const& scale) {
+	scene.objects.emplace_back();
+	Scene::Object& object = scene.objects.back();
+	object.transform.position = position;
+	object.transform.rotation = rotation;
+	object.transform.scale = scale;
+
+	MeshBuffer::Mesh const& mesh = meshes->lookup(name);
+	object.program = game_program->program;
+	object.program_mvp = game_program_mvp;
+	object.classIndex = game_program_index;
+	object.program_mv = game_program_mv;
+	object.program_itmv = game_program_itmv;
+	object.vao = binding->array;
+	object.start = mesh.start;
+	object.count = mesh.count;
+
+	object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
+	return &object;
 }
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
@@ -339,7 +379,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
                     if(calcdistance<0.4f){
                         //person->isMoving = false;
                         
-                        person->meshObject->transform.scale = glm::vec3(0.02f,0.02f,0.02f);
+                        person->meshObject.transform.scale = glm::vec3(0.02f,0.02f,0.02f);
                         
                         reset_scale_timer = SDL_AddTimer(2000,resetScales,NULL);
                         
@@ -363,7 +403,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	}
     else if (e.type == SDL_MOUSEBUTTONDOWN) {
         
-        std::cout<< mouse.x << " " << mouse.y << "\n";
+        /*std::cout<< mouse.x << " " << mouse.y << "\n";
         
         glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
 //        glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
@@ -372,7 +412,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
         
         std::cout<< point2d.x/9.77 << " " << point2d.y/6.5 << "\n";
         
-        //Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;
+        //Matrix4 viewProjectionMatrix = projectionMatrix * viewMatrix;*/
     }
     else if(e.type == SDL_KEYDOWN){
 		if(e.key.keysym.sym == SDLK_TAB) camera.radius++;
@@ -388,14 +428,14 @@ void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
     
-    std::cout<< elapsed << "\n";
+    //std::cout<< elapsed << "\n";
 
 	glm::vec3 playerVel = glm::vec3();
 	if(keys[SDL_SCANCODE_W]) playerVel += glm::vec3(1,0,0);
 	if(keys[SDL_SCANCODE_S]) playerVel += glm::vec3(-1,0,0);
 	if(keys[SDL_SCANCODE_A]) playerVel += glm::vec3(0,1,0);
 	if(keys[SDL_SCANCODE_D]) playerVel += glm::vec3(0,-1,0);
-	player.acc = playerVel;
+	player.vel = glm::normalize(playerVel);
     
 	Person::moveAll(elapsed,&collisionFramework);
 	player.move(elapsed,&collisionFramework);
@@ -411,7 +451,7 @@ void GameMode::update(float elapsed) {
 			continue;
 		}
 
-		switch (out->payload[0]) {
+		/*switch (out->payload[0]) {
 
 			default:
 				std::cout << "Unknown message from server: ";
@@ -421,7 +461,7 @@ void GameMode::update(float elapsed) {
 				std::cout << std::endl;
 				break;
 
-		}
+		}*/
 
 		delete out;
 	}
@@ -466,17 +506,19 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
-	scene.render();
+		scene.render();
+		Person::renderAll(scene.camera, scene.lights,player);
+		
 		
 		float aspect = drawable_size.x / float(drawable_size.y);
 		//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 		glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
 		glm::mat4 projection = glm::mat4(
-																		 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
-																		 glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-																		 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-																		 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-																		 );
+								 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
+								 glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+								 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+								 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+								 );
 		
 		static auto draw_word = [&projection](const std::string& word, float y) {
 				//character width and spacing helpers:
@@ -506,11 +548,11 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 						if (word[i] != ' ') {
 								float s = 0.1f * (1.0f / 3.0f);
 								glm::mat4 mvp = projection * glm::mat4(
-																											 glm::vec4(s, 0.0f, 0.0f, 0.0f),
-																											 glm::vec4(0.0f, s, 0.0f, 0.0f),
-																											 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-																											 glm::vec4(s * x, y, 0.0f, 1.0f)
-																											 );
+														 glm::vec4(s, 0.0f, 0.0f, 0.0f),
+														 glm::vec4(0.0f, s, 0.0f, 0.0f),
+														 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+														 glm::vec4(s * x, y, 0.0f, 1.0f)
+														 );
 								glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 								glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
 								
@@ -540,26 +582,4 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		
 		
 		glDisable(GL_STENCIL_TEST);
-		
-		
-}
-
-Scene::Object* GameMode::addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation, glm::vec3 const& scale) {
-	scene.objects.emplace_back();
-	Scene::Object& object = scene.objects.back();
-	object.transform.position = position;
-	object.transform.rotation = rotation;
-	object.transform.scale = scale;
-
-	MeshBuffer::Mesh const& mesh = meshes->lookup(name);
-	object.program = game_program->program;
-	object.program_mvp = game_program_mvp;
-	object.program_mv = game_program_mv;
-	object.program_itmv = game_program_itmv;
-	object.vao = binding->array;
-	object.start = mesh.start;
-	object.count = mesh.count;
-
-	object.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
-	return &object;
 }

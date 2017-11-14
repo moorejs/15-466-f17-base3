@@ -13,7 +13,7 @@
 struct Scene {
 	struct Transform {
 		Transform() = default;
-		Transform(Transform &) = delete;
+		//Transform(Transform &) = delete;
 		~Transform() {
 			while (last_child) {
 				last_child->set_parent(nullptr);
@@ -60,6 +60,7 @@ struct Scene {
 		Transform transform;
 		//program info:
 		GLuint program = 0;
+		GLuint classIndex = -1U; //index of object into player colors
 		GLuint program_mvp = -1U; //uniform index for MVP matrix (mat4)
 		GLuint program_mv = -1U; //uniform index for model-to-lighting-space matrix (mat4x3)
 		GLuint program_itmv = -1U; //uniform index for normal-to-lighting-space matrix (mat3)

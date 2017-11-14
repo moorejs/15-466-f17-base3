@@ -331,12 +331,12 @@ void StagingMode::update(float elapsed) {
 			}
 
 			default: {
-				std::cout << "Recieved unknown staging message type: " << out->payload.at(0) <<  std::endl;
+				/*std::cout << "Recieved unknown staging message type: " << out->payload.at(0) <<  std::endl;
 				std::cout << "Contents from server: ";
 				for (const auto& thing : out->payload) {
 					printf("%x ", thing);
 				}
-				std::cout << std::endl;
+				std::cout << std::endl;*/
 
 				break;
 			}

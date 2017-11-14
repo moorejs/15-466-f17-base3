@@ -131,6 +131,7 @@ void Scene::render() {
 
 		//set up program uniforms:
 		glUseProgram(object.program);
+		glUniform1i(object.classIndex,-1); //everything here doesn't have a class
 		if (object.program_mvp != -1U) {
 			glUniformMatrix4fv(object.program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 		}

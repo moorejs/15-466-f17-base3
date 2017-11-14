@@ -9,10 +9,15 @@
 #include <time.h>
 #include <functional>
 
+#define NUM_PLAYER_CLASSES 10
+#define NUM_PLAYER_CLASSES_STR "10"
 class Person{
 public:
 	static std::vector<Person*> people;
 	static std::function<float()> random;
+	static GLint personIdx,colors;
+	static glm::vec3 PeopleColors[NUM_PLAYER_CLASSES];
+
 	/* TODO: fuuuuuture
 	struct Outfit{
 		Scene::Object* head, body, legs;
@@ -20,31 +25,30 @@ public:
 	static std::vector<Outfit*> outfits;
 	void changeOutfit();*/
 
+	int playerClass;
 	bool humanControlled;
 	bool isMoving;
 	bool isVisible;
 	bool isAI;
-	glm::vec3 pos,vel,acc;
-	Scene::Object* meshObject;
+	time_t savedTime;
+	glm::vec3 pos,vel;
+	Scene::Object meshObject;
 	glm::quat rot;
 	
-	Person(){}
-	
-	Person(Scene::Object* obj){
-		meshObject = obj;
-		rot = obj->transform.rotation;
+	Person(){
 		humanControlled = false;
 		isMoving = true;
 		isVisible = true;
 		isAI = false;
 		vel = glm::vec3();
-		acc = glm::vec3();
-		placeInScene();
+		playerClass = -1;
 	}
 
-	void placeInScene();
+	glm::vec3 randVel();
+	void placeInScene(Collision* col = NULL);
 	void move(float eps,Collision* col=NULL);
-	void draw();
+
+	static void renderAll(Scene::Camera camera, std::list< Scene::Light > lights,Person player);
 
 	static void moveAll(float eps,Collision* col=NULL){
 		for(auto const& person : people) person->move(eps,col);
@@ -59,4 +63,4 @@ protected:
 	void checkCollision();
 };
 
-Person* makeAI(Scene::Object* obj);
+Person* makeAI();
