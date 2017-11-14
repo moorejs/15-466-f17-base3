@@ -101,8 +101,13 @@ int main(int argc, char** argv) {
 	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice&) { Mode::set_current(nullptr); });
 	menu->selected = 1;
 
+	GameSettings settings;
+	settings.seed = 100;
+	settings.localMultiplayer = true;
+
 	staging->enterGame = [&](Socket* sock, int seed) {
-		game->reset(seed);
+		settings.seed = seed;
+		game->reset(settings);
 		game->sock = sock;
 		Mode::set_current(game);
 	};
@@ -113,7 +118,7 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	game->reset(100);	// temp
+	game->reset(settings);	// temp
 	Mode::set_current(game);
 
 	//------------ game loop ------------
