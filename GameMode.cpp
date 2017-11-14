@@ -17,6 +17,8 @@
 #include "Collisions.h"
 #include "person.h"
 
+
+
 bool isSnapshotOn = false;
 bool isTestimonyShowing = false;
 float randX;
@@ -133,20 +135,20 @@ Load<MeshBuffer> word_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p")
 //Menu program itself:
 Load<GLProgram> word_program(LoadTagInit, [](){
 		GLProgram *ret = new GLProgram(
-						 "#version 330\n"
-						 "uniform mat4 mvp;\n"
-						 "in vec4 Position;\n"
-						 "void main() {\n"
-						 "	gl_Position = mvp * Position;\n"
-						 "}\n"
-						 ,
-						 "#version 330\n"
-						 "uniform vec3 color;\n"
-						 "out vec4 fragColor;\n"
-						 "void main() {\n"
-						 "	fragColor = vec4(color, 1.0);\n"
-						 "}\n"
-						 );
+			 "#version 330\n"
+			 "uniform mat4 mvp;\n"
+			 "in vec4 Position;\n"
+			 "void main() {\n"
+			 "	gl_Position = mvp * Position;\n"
+			 "}\n"
+			 ,
+			 "#version 330\n"
+			 "uniform vec3 color;\n"
+			 "out vec4 fragColor;\n"
+			 "void main() {\n"
+			 "	fragColor = vec4(color, 1.0);\n"
+			 "}\n"
+			 );
 
 		word_program_Position = (*ret)("Position");
 		word_program_mvp = (*ret)["mvp"];
@@ -502,12 +504,25 @@ void GameMode::update(float elapsed) {
 	}
 }
 
-void GameMode::draw(glm::uvec2 const& drawable_size) {
+/*
+struct Ray{glm::vec3 start,dir;};
+	Ray getCameraRay(glm::vec2 pt){
+		glm::vec3 localpt = focal length / pt / fov;
+		glm::mat4 mat = camera.transform.get_local_to_world();
+		glm::vec4 world4 = mat*glm::vec4(localpt.x,localpt.y,localpt.z,1);
+		glm::vec3 world3 = glm::vec4(world4.x,world4.y,world4.z)/world4.w;
+
+		Ray r;
+		r.start = camera.transform.position;
+		r.dir = glm::normalize(world3-r.start);
+	}
+*/
+void GameMode::draw(glm::uvec2 const& drawable_size) {	
 	// camera:
-	scene.camera.transform.position =
-			camera.radius * glm::vec3(std::cos(camera.elevation) * std::cos(camera.azimuth),
-																std::cos(camera.elevation) * std::sin(camera.azimuth), std::sin(camera.elevation)) +
-			camera.target;
+	scene.camera.transform.position = camera.radius * glm::vec3(
+		std::cos(camera.elevation) * std::cos(camera.azimuth),
+		std::cos(camera.elevation) * std::sin(camera.azimuth),
+		std::sin(camera.elevation)) + camera.target;
 
 	glm::vec3 out = -glm::normalize(camera.target - scene.camera.transform.position);
 	glm::vec3 up = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -516,100 +531,144 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.camera.transform.rotation = glm::quat_cast(glm::mat3(right, up, out));
 	scene.camera.transform.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-
+		
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+	
 	static bool prevSnapshotOn = false;
-	static float offset = rand() * 0.3f;	// TODO: server will just send a coord, none of this
+	static float offset = rand()*0.3f; // TODO: server will just send a coord, none of this
 	static glm::vec2 pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
-	if (!prevSnapshotOn && isSnapshotOn) {	// first frame
+	if (!prevSnapshotOn && isSnapshotOn) { // first frame
 		offset = rand() * 0.4f + 0.1f;
 		pos = glm::vec2(player.pos.y / -9.0f - offset, player.pos.x / 6.0f + offset);
 	}
-	if (isSnapshotOn) {
-		snapShot(pos.x, pos.y, &scene);
-		prevSnapshotOn = true;
+	if(isSnapshotOn){
+			snapShot(pos.x, pos.y,&scene);
+			prevSnapshotOn = true;
 	} else {
 		prevSnapshotOn = false;
 	}
-
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	
+	glColorMask( GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE );
 	glDepthMask(GL_TRUE);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+	
 	scene.render();
 	Person::renderAll(scene.camera, scene.lights,player);
-		
-
+	
 	float aspect = drawable_size.x / float(drawable_size.y);
-    
-	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
+	//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 	glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
-	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-    
-	// I just hacked on x centering, it's not good but I couldn't figure out the scaling
-	static auto draw_word = [&projection](const std::string& word, float x, float y) {
-		auto width = [](char a) {
-			if (a == 'I')
-				return 1.0f;
-			else if (a == 'L')
-				return 2.0f;
-			else if (a == 'M' || a == 'W')
-				return 4.0f;
-			else
-				return 3.0f;
-		};
-		auto spacing = [](char a, char b) { return 1.0f; };
-
-		float total_width = 0.0f;
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0)
-				total_width += spacing(word[i - 1], word[i]);
-			total_width += width(word[i]);
-		}
-
-		static const float height = 1.0f;
-		y += -0.5f * 0.1 * height;									// center y
-		x += -0.5f * total_width * 0.1f * 0.3333f;	// center x
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0) {
-				x += spacing(word[i], word[i - 1]) * 0.1f * 0.3333f;
-			}
-
-			if (word[i] != ' ') {
-				float s = 0.1f * (1.0f / 3.0f);
-				glm::mat4 mvp = glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
-																	glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(x, y, 0.0f, 1.0f));
-				glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(game_program_Color, 1.0f, 1.0f, 1.0f);
-
-				MeshBuffer::Mesh const& mesh = word_meshes->lookup(word.substr(i, 1));
-				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-			}
-
-			x += width(word[i]) * 0.1f * 0.3333f;
-		}
-	};
-
+	glm::mat4 projection = glm::mat4(
+					 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
+					 glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+					 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+					 glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
+					 );
 	glUseProgram(word_program->program);
 	glBindVertexArray(word_binding->array);
 
-	if (isTestimonyShowing) {
-		draw_word("ANONYMOUS TIP", 0.0f, -1.25f);
-		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0.0f, -1.5f);
+
+	static auto draw_word = [&projection](const std::string& word, float y) {
+			//character width and spacing helpers:
+			// (...in terms of the menu font's default 3-unit height)
+			auto width = [](char a) {
+					if (a == 'I') return 1.0f;
+					else if (a == 'L') return 2.0f;
+					else if (a == 'M' || a == 'W') return 4.0f;
+					else return 3.0f;
+			};
+			auto spacing = [](char a, char b) {
+					return 1.0f;
+			};
+			
+			float total_width = 0.0f;
+			for (uint32_t i = 0; i < word.size(); ++i) {
+					if (i > 0) total_width += spacing(word[i-1], word[i]);
+					total_width += width(word[i]);
+			}
+			
+			float x = -0.5f * total_width;
+			for (uint32_t i = 0; i < word.size(); ++i) {
+					if (i > 0) {
+							x += spacing(word[i], word[i-1]);
+					}
+					
+					if (word[i] != ' ') {
+							float s = 0.1f * (1.0f / 3.0f);
+							glm::mat4 mvp = projection * glm::mat4(
+										 glm::vec4(s, 0.0f, 0.0f, 0.0f),
+										 glm::vec4(0.0f, s, 0.0f, 0.0f),
+										 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+										 glm::vec4(s * x, y, 0.0f, 1.0f)
+																										 );
+							glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+							glUniform3f(word_program_color, 1.0f, 1.0f, 1.0f);
+							
+							MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
+							glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+					}
+					
+					x += width(word[i]);
+			}
+	};
+	static auto draw_word_xy = [&projection](const std::string& word, float init_x, float y) {
+			//character width and spacing helpers:
+			// (...in terms of the menu font's default 3-unit height)
+			auto width = [](char a) {
+					if (a == 'I') return 1.0f;
+					else if (a == 'L') return 2.0f;
+					else if (a == 'M' || a == 'W') return 4.0f;
+					else return 3.0f;
+			};
+			auto spacing = [](char a, char b) {
+					return 1.0f;
+			};
+			
+			float total_width = 0.0f;
+			for (uint32_t i = 0; i < word.size(); ++i) {
+					if (i > 0) total_width += spacing(word[i-1], word[i]);
+					total_width += width(word[i]);
+			}
+			
+			float x = -0.5f * total_width;
+			for (uint32_t i = 0; i < word.size(); ++i) {
+					if (i > 0) {
+							x += spacing(word[i], word[i-1]);
+					}
+					
+					if (word[i] != ' ') {
+							float s = 0.1f * (1.0f / 3.0f);
+							glm::mat4 mvp = projection * glm::mat4(
+										 glm::vec4(s, 0.0f, 0.0f, 0.0f),
+										 glm::vec4(0.0f, s, 0.0f, 0.0f),
+										 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+										 glm::vec4(2*init_x+s * x, 2*y+0.1, 0.0f, 1.0f)
+																										 );
+							glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+							glUniform3f(word_program_color, 1.0f, 1.0f, 1.0f);
+							
+							MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
+							glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+					}
+					
+					x += width(word[i]);
+			}
+	};
+	
+	if(isTestimonyShowing){
+		draw_word("ANONYMOUS TIP", -1.25f);
+		draw_word("SUSPICIOUS PERSON "+testimony_text+" REPORTED", -1.5f);
 	}
-
-	draw_word(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
-	draw_word(anonymousTipBtn.label, anonymousTipBtn.pos.x, anonymousTipBtn.pos.y);
-
+	draw_word_xy(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
+	draw_word_xy(anonymousTipBtn.label,  anonymousTipBtn.pos.x,anonymousTipBtn.pos.y);
+	
+	
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);
 	scene.camera.fovy = glm::radians(60.0f);
 	scene.camera.near = 0.01f;
-
+	
 	glDisable(GL_STENCIL_TEST);
 }
