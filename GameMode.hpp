@@ -10,6 +10,13 @@
 #include <functional>
 #include <random>
 
+struct GameSettings {
+	float POWER_TIMEOUT = 15.0f;
+
+	int seed;
+	bool localMultiplayer;
+};
+
 struct GameMode : public Mode {
 	GameMode();
 	virtual ~GameMode() {}
@@ -17,8 +24,9 @@ struct GameMode : public Mode {
 	virtual bool handle_event(SDL_Event const& event, glm::uvec2 const& window_size) override;
 	virtual void update(float elapsed) override;
 	virtual void draw(glm::uvec2 const& drawable_size) override;
+
+	void reset(const GameSettings& settings);	// reset the game state
 	void endGame();
-	void reset(int seed);	// reset the game state
 
 	Scene::Object* addObject(std::string const& name,
 													 glm::vec3 const& position,
@@ -32,9 +40,12 @@ struct GameMode : public Mode {
 	// scene + references into scene for objects:
 	Scene scene;
 
+	bool isRobber;
+
+	GameSettings settings;
 	struct GameState {
 		float overallTimer = 0.0f;
-		float powerTimer = 0.0f;
+		float powerTimer = 10.0f;
 	} state;
 
 	// controls:
@@ -60,4 +71,6 @@ struct GameMode : public Mode {
 	Button anonymousTipBtn;
 
 	Socket* sock;
+
+	glm::uvec2 screenSize;
 };
