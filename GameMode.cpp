@@ -620,7 +620,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glUseProgram(word_program->program);
 	glBindVertexArray(word_binding->array);
 
-	static auto draw_word = [&projection](const std::string& word, float init_x, float y,float fontSize=1.f) {
+	static auto draw_word = [&projection](const std::string& word, float init_x, float y,float fontSize=1.f,glm::vec3 color=glm::vec3(1,1,1)) {
 			//character width and spacing helpers:
 			// (...in terms of the menu font's default 3-unit height)
 			auto width = [](char a) {
@@ -654,7 +654,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 										 glm::vec4(2*init_x+s * x, 2*y+0.1, 0.0f, 1.0f)
 																										 );
 							glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-							glUniform3f(word_program_color, 1.0f, 1.0f, 1.0f);
+							glUniform3f(word_program_color, color.r,color.g,color.b);
 							
 							MeshBuffer::Mesh const &mesh = word_meshes->lookup(word.substr(i, 1));
 							glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
@@ -674,18 +674,18 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	int secondsRemaining = gameEnded? 0 : game_duration-int(difftime(curtime,game_start_time));
 	char timeString[1000];
 	if(secondsRemaining<=0) sprintf(timeString,"TIME IS UP");
-	else if(secondsRemaining>100) sprintf(timeString,"ONE HUNDRED SECONDS LEFT");
-	else if(secondsRemaining>80) sprintf(timeString,"EIGHTY SECONDS LEFT");
-	else if(secondsRemaining>60) sprintf(timeString,"SIXTY SECONDS LEFT");
-	else if(secondsRemaining>40) sprintf(timeString,"FORTY SECONDS LEFT");
-	else if(secondsRemaining>20) sprintf(timeString,"TWENTY SECONDS LEFT");
-	else if(secondsRemaining>10) sprintf(timeString,"TEN SECONDS LEFT");
+	else if(secondsRemaining>100) sprintf(timeString,"HUNDRED TWENTY SECONDS LEFT");
+	else if(secondsRemaining>80) sprintf(timeString,"HUNDRED SECONDS LEFT");
+	else if(secondsRemaining>60) sprintf(timeString,"EIGHTY SECONDS LEFT");
+	else if(secondsRemaining>40) sprintf(timeString,"SIXTY SECONDS LEFT");
+	else if(secondsRemaining>20) sprintf(timeString,"FORTY SECONDS LEFT");
+	else if(secondsRemaining>10) sprintf(timeString,"TWENTY SECONDS LEFT");
 	else{
 		static char digits[10][32] = {"ONE","TWO","THREE","FOUR","FIVE","SIX","SEVEN","EIGHT","NINE","TEN"};
 		sprintf(timeString,"%s SECONDS LEFT",digits[secondsRemaining-1]);
 	}
 
-	draw_word(timeString,0.9,0.8,0.8);
+	draw_word(timeString,0.9,0.8,0.8,glm::vec3(0.4,0.6,0.6));
 	draw_word(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
 	draw_word(anonymousTipBtn.label,  anonymousTipBtn.pos.x,anonymousTipBtn.pos.y);
     if(gameResultPosted){
