@@ -15,8 +15,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Collisions.h"
-#include "person.h"
 #include "Sounds.h"
+#include "person.h"
 
 bool isSnapshotOn = false;
 bool isTestimonyShowing = false;
@@ -334,14 +334,14 @@ GameMode::GameMode() {
 	anonymousTipBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
 }
 
-//https://www.bensound.com/royalty-free-music/track/summer
+// https://www.bensound.com/royalty-free-music/track/summer
 Sound bgmusic;
 void GameMode::reset(const GameSettings& gameSettings) {
 	settings = gameSettings;
 	twister.seed(settings.seed);
-	bgmusic = Sound("../sounds/bensound-summer.wav",true);
+	bgmusic = Sound("../sounds/bensound-summer.wav", true);
 	bgmusic.play();
-	int numPlayers = 200;
+	int numPlayers = 250;
 
 	Person::random = rand;
 	MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
@@ -436,7 +436,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 	if (e.type == SDL_KEYDOWN) {
 		switch (e.key.keysym.sym) {
-			case SDLK_x:
+			case SDLK_LSHIFT:
 
 				for (auto person : Person::people) {
 					float distancex = pow(person->pos.x - player.pos.x, 2.0f);
