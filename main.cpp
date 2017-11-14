@@ -1,7 +1,7 @@
-#include "MenuMode.hpp"
 #include "GameMode.hpp"
-#include "StagingMode.hpp"
+#include "MenuMode.hpp"
 #include "Socket.hpp"
+#include "StagingMode.hpp"
 
 #include "GL.hpp"
 #include "Load.hpp"
@@ -9,14 +9,14 @@
 
 #include <SDL.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <chrono>
-#include <iostream>
-#include <stdexcept>
 #include <fstream>
+#include <iostream>
 #include <memory>
+#include <stdexcept>
 
 int main(int argc, char** argv) {
 	// Configuration:
@@ -29,7 +29,6 @@ int main(int argc, char** argv) {
 
 	// Initialize SDL library:
 	SDL_Init(SDL_INIT_VIDEO);
-        
 
 	// Ask for an OpenGL context version 3.3, core profile, enable debug:
 	SDL_GL_ResetAttributes();
@@ -114,26 +113,7 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	game->diamonds_wins = [&]() {
-		menu->choices[0].label = "DIAMONDS WINS";
-		menu->choices[1].label = "PLAY AGAIN";
-		menu->selected = 1;
-		Mode::set_current(menu);
-	};
-	game->solids_wins = [&]() {
-		menu->choices[0].label = "SOLIDS WINS";
-		menu->choices[1].label = "PLAY AGAIN";
-		menu->selected = 1;
-		Mode::set_current(menu);
-	};
-	game->everyone_loses = [&]() {
-		menu->choices[0].label = "EVERYONE LOSES";
-		menu->choices[1].label = "PLAY AGAIN";
-		menu->selected = 1;
-		Mode::set_current(menu);
-	};
-
-	game->reset(100); // temp
+	game->reset(100);	// temp
 	Mode::set_current(game);
 
 	//------------ game loop ------------

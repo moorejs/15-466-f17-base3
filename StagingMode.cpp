@@ -1,48 +1,44 @@
 #include "StagingMode.hpp"
 
-#include "Load.hpp"
+#include "GLBuffer.hpp"
 #include "GLProgram.hpp"
 #include "GLVertexArray.hpp"
+#include "Load.hpp"
 #include "MeshBuffer.hpp"
-#include "GLBuffer.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
 #ifdef DEBUG
-	#define DEBUG_PRINT(x) std::cout << __FILE__ << ":" << __LINE__ << ": " << x << std::endl
-	#define IF_DEBUG(x) x
+#define DEBUG_PRINT(x) std::cout << __FILE__ << ":" << __LINE__ << ": " << x << std::endl
+#define IF_DEBUG(x) x
 #else
-	#define DEBUG_PRINT(x)
-	#define IF_DEBUG(x)
+#define DEBUG_PRINT(x)
+#define IF_DEBUG(x)
 #endif
 
-Load<MeshBuffer> staging_meshes(LoadTagInit, [](){
-	return new MeshBuffer("menu.p");
-});
+Load<MeshBuffer> staging_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
 
-//Attrib locations in staging_program:
+// Attrib locations in staging_program:
 GLint staging_program_Position = -1;
-//Uniform locations in staging_program:
+// Uniform locations in staging_program:
 GLint staging_program_mvp = -1;
 GLint staging_program_color = -1;
 
-//Menu program itself:
-Load<GLProgram> staging_program(LoadTagInit, [](){
-	GLProgram *ret = new GLProgram(
-		"#version 330\n"
-		"uniform mat4 mvp;\n"
-		"in vec4 Position;\n"
-		"void main() {\n"
-		"	gl_Position = mvp * Position;\n"
-		"}\n"
-	,
-		"#version 330\n"
-		"uniform vec3 color;\n"
-		"out vec4 fragColor;\n"
-		"void main() {\n"
-		"	fragColor = vec4(color, 1.0);\n"
-		"}\n"
-	);
+// Menu program itself:
+Load<GLProgram> staging_program(LoadTagInit, []() {
+	GLProgram* ret = new GLProgram(
+			"#version 330\n"
+			"uniform mat4 mvp;\n"
+			"in vec4 Position;\n"
+			"void main() {\n"
+			"	gl_Position = mvp * Position;\n"
+			"}\n",
+			"#version 330\n"
+			"uniform vec3 color;\n"
+			"out vec4 fragColor;\n"
+			"void main() {\n"
+			"	fragColor = vec4(color, 1.0);\n"
+			"}\n");
 
 	staging_program_Position = (*ret)("Position");
 	staging_program_mvp = (*ret)["mvp"];
@@ -51,16 +47,16 @@ Load<GLProgram> staging_program(LoadTagInit, [](){
 	return ret;
 });
 
-//Binding for using staging_program on staging_meshes:
-Load<GLVertexArray> staging_binding(LoadTagDefault, [](){
-	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(staging_program->program, {
-		{staging_program_Position, staging_meshes->Position},
-	}));
+// Binding for using staging_program on staging_meshes:
+Load<GLVertexArray> staging_binding(LoadTagDefault, []() {
+	GLVertexArray* ret = new GLVertexArray(
+			GLVertexArray::make_binding(staging_program->program, {
+																																{staging_program_Position, staging_meshes->Position},
+																														}));
 	return ret;
 });
 
-StagingMode::StagingMode()
-{
+StagingMode::StagingMode() {
 	DEBUG_PRINT("IN DEBUG MODE");
 
 	sock = nullptr;
@@ -72,7 +68,7 @@ StagingMode::StagingMode()
 
 	glm::vec3 btnColor = glm::vec3(0.75f, 0.0f, 0.0f);
 
-	StagingMode::Button cop;
+	Button cop;
 	cop.color = btnColor;
 	cop.pos = glm::vec2(-0.5f, 0.65f);
 	cop.rad = glm::vec2(0.4f, 0.1f);
@@ -82,27 +78,25 @@ StagingMode::StagingMode()
 		return !stagingState.starting && stagingState.player && stagingState.player->role != StagingState::Role::COP;
 	};
 	cop.onFire = [&]() {
-		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, { StagingState::Role::COP }));
+		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::COP}));
 
 		// just accept latency.. stagingState.players[stagingState.playerId].role = StagingState::Role::COP;
 	};
 
-	StagingMode::Button robber;
+	Button robber;
 	robber.color = btnColor;
 	robber.pos = glm::vec2(0.5f, 0.65f);
 	robber.rad = glm::vec2(0.4f, 0.1f);
 	robber.label = "ROBBER";
 
-	robber.isEnabled = [&]() {
-		return !stagingState.starting && stagingState.player && !stagingState.robber;
-	};
+	robber.isEnabled = [&]() { return !stagingState.starting && stagingState.player && !stagingState.robber; };
 	robber.onFire = [&]() {
-		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, { StagingState::Role::ROBBER }));
+		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::ROBBER}));
 
 		// accepting latency for now.. stagingState.players[stagingState.playerId].role = StagingState::Role::ROBBER;
 	};
 
-	StagingMode::Button start;
+	Button start;
 	start.color = btnColor;
 	start.pos = glm::vec2(0.0f, -0.35f);
 	start.rad = glm::vec2(0.75f, 0.1f);
@@ -140,8 +134,6 @@ void StagingMode::reset() {
 	stagingState.starting = false;
 
 	sock = Socket::connect("::1", "3490");
-
-
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {
@@ -150,7 +142,7 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 	if (event.type == SDL_MOUSEMOTION) {
 		// TODO: fixed screen size
 		mouse.x = (event.motion.x + 0.5f) / 640.0f * 2.0f - 1.0f;
-		mouse.y = (event.motion.y + 0.5f) / 400.0f *-2.0f + 1.0f;
+		mouse.y = (event.motion.y + 0.5f) / 400.0f * -2.0f + 1.0f;
 
 		for (Button& button : buttons) {
 			button.hover = button.contains(mouse);
@@ -167,13 +159,12 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 		}
 	}
 
-
 	if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
 		showMenu();
 		return true;
 	}
 
-  return false;
+	return false;
 }
 
 void StagingMode::update(float elapsed) {
@@ -202,9 +193,9 @@ void StagingMode::update(float elapsed) {
 			continue;
 		}
 
-		static const std::vector<std::string> names = { "Name1", "Name2", "Name3" }; // temp, auto-naming;
+		static const std::vector<std::string> names = {"Name1", "Name2", "Name3"};	// temp, auto-naming;
 
-		switch (out->payload.at(0)) { // message type
+		switch (out->payload.at(0)) {	// message type
 
 			case MessageType::STAGING_PLAYER_CONNECT: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
@@ -226,7 +217,6 @@ void StagingMode::update(float elapsed) {
 				// player should only ever get this message once
 				// contains player's id and the state of any other connected clients
 
-
 				auto player = std::make_unique<StagingState::Client>();
 				player->id = out->payload[1];
 				player->role = StagingState::Role::NONE;
@@ -242,7 +232,7 @@ void StagingMode::update(float elapsed) {
 				while (i < out->payload.size()) {
 					auto opponent = std::make_unique<StagingState::Client>();
 					opponent->id = out->payload[i];
-					opponent->role = static_cast<StagingState::Role>(out->payload[i+1]);
+					opponent->role = static_cast<StagingState::Role>(out->payload[i + 1]);
 					opponent->name = names[opponent->id % names.size()];
 
 					if (opponent->role == StagingState::Role::ROBBER) {
@@ -251,7 +241,8 @@ void StagingMode::update(float elapsed) {
 						stagingState.undecided += 1;
 					}
 
-					DEBUG_PRINT("Added client " << opponent->id << " with name " << opponent->name << " and role " << opponent->role);
+					DEBUG_PRINT("Added client " << opponent->id << " with name " << opponent->name << " and role "
+																			<< opponent->role);
 
 					stagingState.players[opponent->id] = std::move(opponent);
 
@@ -325,7 +316,7 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_START_GAME: {
 				// contains seed
 
-				enterGame(sock, out->payload.at(1)); // TODO: make sock unique_ptr and move it here
+				enterGame(sock, out->payload.at(1));	// TODO: make sock unique_ptr and move it here
 
 				break;
 			}
@@ -340,7 +331,6 @@ void StagingMode::update(float elapsed) {
 
 				break;
 			}
-
 		}
 
 		delete out;
@@ -348,26 +338,20 @@ void StagingMode::update(float elapsed) {
 }
 void StagingMode::draw(glm::uvec2 const& drawable_size) {
 	float aspect = drawable_size.x / float(drawable_size.y);
-	//scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
+	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 	glm::vec2 scale = glm::vec2(1.0f / aspect, 1.0f);
-	glm::mat4 projection = glm::mat4(
-		glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-	);
+	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
 	glUseProgram(staging_program->program);
 	glBindVertexArray(staging_binding->array);
 
-	static const MeshBuffer::Mesh &buttonMesh = staging_meshes->lookup("Button");
+	static const MeshBuffer::Mesh& buttonMesh = staging_meshes->lookup("Button");
 	static auto draw_button = [&](const Button& button) {
 		// note that buttons scale with aspect ratio, projection matrix not applied
-		glm::mat4 mvp = glm::mat4(
-			glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f),
-			glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
-			glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-			glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f) // z is back to show text
+		glm::mat4 mvp = glm::mat4(glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
+															glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+															glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f)	// z is back to show text
 		);
 
 		glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
@@ -388,41 +372,40 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 	// I just hacked on x centering, it's not good but I couldn't figure out the scaling
 	static auto draw_word = [&projection](const std::string& word, float x, float y) {
 		auto width = [](char a) {
-			if (a == 'I') return 1.0f;
-			else if (a == 'L') return 2.0f;
-			else if (a == 'M' || a == 'W') return 4.0f;
-			else return 3.0f;
+			if (a == 'I')
+				return 1.0f;
+			else if (a == 'L')
+				return 2.0f;
+			else if (a == 'M' || a == 'W')
+				return 4.0f;
+			else
+				return 3.0f;
 		};
-		auto spacing = [](char a, char b) {
-			return 1.0f;
-		};
+		auto spacing = [](char a, char b) { return 1.0f; };
 
 		float total_width = 0.0f;
 		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0) total_width += spacing(word[i-1], word[i]);
+			if (i > 0)
+				total_width += spacing(word[i - 1], word[i]);
 			total_width += width(word[i]);
 		}
 
 		static const float height = 1.0f;
-		y += -0.5f * 0.1 * height; // center y
-		x += -0.5f * total_width * 0.1f * 0.3333f; // center x
+		y += -0.5f * 0.1 * height;									// center y
+		x += -0.5f * total_width * 0.1f * 0.3333f;	// center x
 		for (uint32_t i = 0; i < word.size(); ++i) {
 			if (i > 0) {
-				x += spacing(word[i], word[i-1]) * 0.1f * 0.3333f;
+				x += spacing(word[i], word[i - 1]) * 0.1f * 0.3333f;
 			}
 
 			if (word[i] != ' ') {
 				float s = 0.1f * (1.0f / 3.0f);
-				glm::mat4 mvp = glm::mat4(
-					glm::vec4(s, 0.0f, 0.0f, 0.0f),
-					glm::vec4(0.0f, s, 0.0f, 0.0f),
-					glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-					glm::vec4(x, y, 0.0f, 1.0f)
-				);
+				glm::mat4 mvp = glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
+																	glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(x, y, 0.0f, 1.0f));
 				glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 				glUniform3f(staging_program_color, 1.0f, 1.0f, 1.0f);
 
-				MeshBuffer::Mesh const &mesh = staging_meshes->lookup(word.substr(i, 1));
+				MeshBuffer::Mesh const& mesh = staging_meshes->lookup(word.substr(i, 1));
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 			}
 
@@ -437,7 +420,6 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 		draw_word("CONNECTED", 0.0f, -0.92f);
 
 		switch (stagingState.player->role) {
-
 			case StagingState::Role::ROBBER: {
 				draw_word("ROBBER SELECTED", 0.0f, 0.88f);
 				break;
@@ -452,7 +434,6 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 				draw_word("SELECT A ROLE", 0.0f, 0.88f);
 				break;
 			}
-
 		}
 
 		for (const auto& button : buttons) {

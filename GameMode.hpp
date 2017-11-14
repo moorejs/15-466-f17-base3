@@ -2,9 +2,10 @@
 
 #include "Mode.hpp"
 
+#include "Random.hpp"
 #include "Scene.hpp"
 #include "Socket.hpp"
-#include "Random.hpp"
+#include "ui/Button.hpp"
 
 #include <functional>
 #include <random>
@@ -19,17 +20,22 @@ struct GameMode : public Mode {
 
 	void reset(int seed);	// reset the game state
 
-	Scene::Object* addObject(std::string const& name, glm::vec3 const& position, glm::quat const& rotation,
-		glm::vec3 const& scale);
+	Scene::Object* addObject(std::string const& name,
+													 glm::vec3 const& position,
+													 glm::quat const& rotation,
+													 glm::vec3 const& scale);
 
 	std::mt19937 twister;
 	UniformRealDistribution<float> dist;
-	std::function<float()> rand = [&]() -> float {
-		return dist(twister);
-	};
+	std::function<float()> rand = [&]() -> float { return dist(twister); };
 
 	// scene + references into scene for objects:
 	Scene scene;
+
+	struct GameState {
+		float overallTimer = 0.0f;
+		float powerTimer = 0.0f;
+	} state;
 
 	// controls:
 	struct Controls {
@@ -50,10 +56,8 @@ struct GameMode : public Mode {
 
 	bool did_end = false;
 
-	// functions to call when game ends:
-	std::function<void()> diamonds_wins;
-	std::function<void()> solids_wins;
-	std::function<void()> everyone_loses;
+	Button snapshotBtn;
+	Button anonymousTipBtn;
 
 	Socket* sock;
 };
