@@ -31,7 +31,7 @@ Person* makeAI(){
 }
 
 bool colorsNotInit = true;
-void Person::renderAll(Scene::Camera camera, std::list< Scene::Light > lights, Person player){
+void Person::renderAll(Scene::Camera camera, std::list< Scene::Light > lights, Person player,Person cop){
 	glm::mat4 world_to_camera = camera.transform.make_world_to_local();
 	glm::mat4 world_to_clip = camera.make_projection() * world_to_camera;
 
@@ -49,7 +49,13 @@ void Person::renderAll(Scene::Camera camera, std::list< Scene::Light > lights, P
 	}
 
 	for (unsigned int i=0;i<=people.size();i++){
-		Person* person = (i==people.size())? &player : people[i];
+        Person* person;
+        if(i==people.size())
+            person = &player;
+        else if(i==people.size()-1)
+            person = &cop;
+        else
+            person = people[i];
 		glm::mat4 local_to_world = person->meshObject.transform.make_local_to_world();
 
 		//compute modelview+projection (object space to clip space) matrix for this object:

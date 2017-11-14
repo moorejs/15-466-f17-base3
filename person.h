@@ -48,7 +48,7 @@ public:
 	void placeInScene(Collision* col = NULL);
 	void move(float eps,Collision* col=NULL);
 
-	static void renderAll(Scene::Camera camera, std::list< Scene::Light > lights,Person player);
+    static void renderAll(Scene::Camera camera, std::list< Scene::Light > lights,Person player,Person cop);
 
 	static void moveAll(float eps,Collision* col=NULL){
 		for(auto const& person : people) person->move(eps,col);

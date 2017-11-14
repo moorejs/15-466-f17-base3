@@ -35,7 +35,7 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Uint32 game_time = 120000;
+Uint32 game_time = 5000;
 Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
@@ -44,6 +44,8 @@ GLint word_program_Position = -1;
 GLint word_program_mvp = -1;
 GLint word_program_color = -1;	// color
 Person player;
+
+Person cop;
 
 bool gameEnded = false;
 
@@ -113,6 +115,11 @@ Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 	return interval;
 }
 
+void spawnCop(){
+    cop.meshObject.transform.scale = 0.016f*glm::vec3(1,1,1);
+    cop.meshObject.transform.position = glm::vec3(-1.0f,5.5f,0.0f);
+    cop.isMoving = true;
+}
 
 Uint32 endGame(Uint32 interval = 0, void* param = nullptr) {
     
@@ -122,6 +129,8 @@ Uint32 endGame(Uint32 interval = 0, void* param = nullptr) {
     player.isMoving = false;
     
     SDL_RemoveTimer(game_timer);
+    
+    spawnCop();
     
     return interval;
 }
@@ -345,10 +354,15 @@ void GameMode::reset(int seed) {
 		if(i==numPlayers){
 			player = Person();
 			cur = &player;
-		}else cur = makeAI();
+		}
+        else if(i==numPlayers-1){
+            cop = Person();
+            cur = &cop;
+        }
+        else cur = makeAI();
 		cur->meshObject.transform.rotation = glm::angleAxis(glm::radians(90.f),glm::vec3(1,0,0));
 		cur->meshObject.transform.scale = 0.012f*glm::vec3(1,1,1);
-
+        
 		cur->meshObject.program = game_program->program;
 		cur->meshObject.program_mvp = game_program_mvp;
 		cur->meshObject.program_mv = game_program_mv;
@@ -357,7 +371,12 @@ void GameMode::reset(int seed) {
 		cur->meshObject.start = mesh.start;
 		cur->meshObject.count = mesh.count;
 		cur->meshObject.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
-		cur->placeInScene((i==numPlayers)? NULL : &collisionFramework);
+		cur->placeInScene((i>=numPlayers-1)? NULL : &collisionFramework);
+        
+        //cop
+        if(i==numPlayers-1){
+            cur->meshObject.transform.scale = 0.0f*glm::vec3(1,1,1);
+        }
 	}
 }
 
@@ -432,6 +451,27 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
                 }
                 
 				break;
+            case SDLK_SPACE:
+                //Catch thief
+                if(gameEnded){
+                    float distancex = pow(cop.pos.x - player.pos.x, 2.0f);
+                    float distancey = pow(cop.pos.y - player.pos.y, 2.0f);
+                    
+                    double calcdistance = pow(distancex + distancey, 0.5f);
+                    
+                    if(calcdistance<0.3f){
+                        player.meshObject.transform.scale = 0.016f*glm::vec3(1,1,1);
+                        std::cout<< "Thief Found" << "\n";
+                    }
+                    else{
+                        std::cout<< "Thief NOT Found. Cops lose!" << "\n";
+                    }
+                }
+                //DEPLOY COP
+                else{
+                    endGame();
+                }
+                break;
 			default:
 				break;
 		}
@@ -479,11 +519,21 @@ void GameMode::update(float elapsed) {
 	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
 	(void)keys;
 	glm::vec3 playerVel = glm::vec3();
+    glm::vec3 copVel = glm::vec3();
+    
 	if(keys[SDL_SCANCODE_W]) playerVel += glm::vec3(1,0,0);
 	if(keys[SDL_SCANCODE_S]) playerVel += glm::vec3(-1,0,0);
 	if(keys[SDL_SCANCODE_A]) playerVel += glm::vec3(0,1,0);
 	if(keys[SDL_SCANCODE_D]) playerVel += glm::vec3(0,-1,0);
 	player.vel = glm::normalize(playerVel);
+    
+    if(keys[SDL_SCANCODE_UP] && gameEnded) copVel += glm::vec3(1,0,0);
+    if(keys[SDL_SCANCODE_DOWN] && gameEnded) copVel += glm::vec3(-1,0,0);
+    if(keys[SDL_SCANCODE_LEFT] && gameEnded) copVel += glm::vec3(0,1,0);
+    if(keys[SDL_SCANCODE_RIGHT] && gameEnded) copVel += glm::vec3(0,-1,0);
+    cop.vel = glm::normalize(copVel);
+    cop.move(elapsed,&collisionFramework);
+
     
 	Person::moveAll(elapsed,&collisionFramework);
 	player.move(elapsed,&collisionFramework);
@@ -542,7 +592,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	scene.render();
-	Person::renderAll(scene.camera, scene.lights,player);
+	Person::renderAll(scene.camera, scene.lights,player,cop);
 		
 
 	float aspect = drawable_size.x / float(drawable_size.y);
