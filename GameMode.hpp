@@ -11,6 +11,8 @@
 #include <random>
 
 struct GameSettings {
+	float POWER_TIMEOUT = 15.0f;
+
 	int seed;
 	bool localMultiplayer;
 };
@@ -39,9 +41,11 @@ struct GameMode : public Mode {
 	Scene scene;
 
 	bool isRobber;
+
+	GameSettings settings;
 	struct GameState {
 		float overallTimer = 0.0f;
-		float powerTimer = 0.0f;
+		float powerTimer = 10.0f;
 	} state;
 
 	// controls:

@@ -313,7 +313,7 @@ GameMode::GameMode() {
 	snapshotBtn.pos = glm::vec2(-0.5f + 0.025f, -0.92f);
 	snapshotBtn.rad = glm::vec2(0.45f, 0.06f);
 	snapshotBtn.label = "SNAPSHOT";
-	snapshotBtn.isEnabled = [&]() { return true; };	// state.powerTimer > 30.0f };
+	snapshotBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > settings.POWER_TIMEOUT; };
 	snapshotBtn.onFire = [&]() {
 		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
 		enableSnapShot();
@@ -324,7 +324,7 @@ GameMode::GameMode() {
 	anonymousTipBtn.pos = glm::vec2(0.5f - 0.025f, -0.92f);
 	anonymousTipBtn.rad = glm::vec2(0.45f, 0.06f);
 	anonymousTipBtn.label = "ANON TIP";
-	anonymousTipBtn.isEnabled = [&]() { return true; };	// state.powerTimer > 30.0f };
+	anonymousTipBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > settings.POWER_TIMEOUT; };
 	anonymousTipBtn.onFire = [&]() {
 		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
 		showTestimony();
@@ -333,7 +333,9 @@ GameMode::GameMode() {
 	anonymousTipBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
 }
 
-void GameMode::reset(const GameSettings& settings) {
+void GameMode::reset(const GameSettings& gameSettings) {
+	settings = gameSettings;
+
 	twister.seed(settings.seed);
 
 	int numPlayers = 200;
@@ -517,6 +519,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 }
 
 void GameMode::update(float elapsed) {
+	state.powerTimer += elapsed;
+
 	static auto move = [&](bool up, bool left, bool right, bool down) {
 		glm::vec3 vel = glm::vec3(0.0f);
 
@@ -644,28 +648,6 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glUseProgram(word_program->program);
 	glBindVertexArray(word_binding->array);
 
-	static const MeshBuffer::Mesh& buttonMesh = word_meshes->lookup("Button");
-	static auto draw_button = [&](const Button& button) {
-		// note that buttons scale with aspect ratio, projection matrix not applied
-		glm::mat4 mvp = glm::mat4(glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
-															glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-															glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f)	// z is back to show text
-		);
-
-		glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-
-		glm::vec3 color = button.color;
-		if (button.hover) {
-			color *= 1.25f;
-		}
-		if (!button.isEnabled()) {
-			color *= 0.1f;
-		}
-		glUniform3f(word_program_color, color.x, color.y, color.z);
-
-		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
-	};
-
 	static auto draw_word = [&projection](const std::string& word, float init_x, float y, float fontSize = 1.f,
 																				glm::vec3 color = glm::vec3(1, 1, 1)) {
 		// character width and spacing helpers:
@@ -711,6 +693,32 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		}
 	};
 
+	static const MeshBuffer::Mesh& buttonMesh = word_meshes->lookup("Button");
+	static auto draw_button = [&](const Button& button) {
+		// note that buttons scale with aspect ratio, projection matrix not applied
+		glm::mat4 mvp = glm::mat4(glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
+															glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+															glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f)	// z is back to show text
+		);
+
+		glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+
+		glm::vec3 color = button.color;
+		glm::vec3 textColor = glm::vec3(1.0f);
+		if (button.hover) {
+			color *= 1.25f;
+		}
+		if (!button.isEnabled()) {
+			color *= 0.1f;
+			textColor *= 0.5f;
+		}
+		glUniform3f(word_program_color, color.x, color.y, color.z);
+
+		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
+
+		draw_word(button.label, button.pos.x, button.pos.y, 1, textColor);
+	};
+
 	if (isTestimonyShowing) {
 		draw_word("ANONYMOUS TIP", 0, -1.25f);
 		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -1.5f);
@@ -739,11 +747,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		sprintf(timeString, "%s SECONDS LEFT", digits[secondsRemaining - 1]);
 	}
 
-	draw_word(timeString, 0.9, 0.8, 0.8, glm::vec3(0.4, 0.6, 0.6));
+	draw_word(timeString, 0.7, 0.8, 0.8, glm::vec3(0.4, 0.4, 0.4));
 	draw_button(snapshotBtn);
 	draw_button(anonymousTipBtn);
-	draw_word(snapshotBtn.label, snapshotBtn.pos.x, snapshotBtn.pos.y);
-	draw_word(anonymousTipBtn.label, anonymousTipBtn.pos.x, anonymousTipBtn.pos.y);
+
 	if (gameResultPosted) {
 		draw_word(endGameTxt, 0, -0.7f);
 	}
