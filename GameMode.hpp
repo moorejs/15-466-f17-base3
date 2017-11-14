@@ -17,7 +17,7 @@ struct GameMode : public Mode {
 	virtual bool handle_event(SDL_Event const& event, glm::uvec2 const& window_size) override;
 	virtual void update(float elapsed) override;
 	virtual void draw(glm::uvec2 const& drawable_size) override;
-
+	void endGame();
 	void reset(int seed);	// reset the game state
 
 	Scene::Object* addObject(std::string const& name,
