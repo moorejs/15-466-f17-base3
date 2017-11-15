@@ -48,6 +48,9 @@ struct GameMode : public Mode {
 		float powerTimer = 10.0f;
 	} state;
 
+	// counts elapsed time
+	float counter;
+
 	// controls:
 	struct Controls {
 		SDL_Scancode left_forward;

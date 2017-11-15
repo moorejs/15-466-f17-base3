@@ -522,6 +522,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 }
 
 void GameMode::update(float elapsed) {
+	counter += elapsed;
+
 	state.powerTimer += elapsed;
 
 	static auto move = [&](bool up, bool left, bool right, bool down) {
@@ -697,28 +699,34 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	};
 
 	static const MeshBuffer::Mesh& buttonMesh = word_meshes->lookup("Button");
-	static auto draw_button = [&](const Button& button) {
-		// note that buttons scale with aspect ratio, projection matrix not applied
-		glm::mat4 mvp = glm::mat4(glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
-															glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-															glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f)	// z is back to show text
-		);
+	static auto draw_rect = [&](const glm::vec2& pos, const glm::vec2& rad, const glm::vec3& color) {
+		// scale with aspect ratio, projection matrix not applied
+		glm::mat4 mvp =
+				glm::mat4(glm::vec4(rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, rad.y, 0.0f, 0.0f),
+									glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(pos.x, pos.y, -0.05f, 1.0f)	// z is back to show text
+				);
 
 		glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-
+		glUniform3f(word_program_color, color.x, color.y, color.z);
+		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
+	};
+	static auto draw_button = [&](const Button& button) {
 		glm::vec3 color = button.color;
 		glm::vec3 textColor = glm::vec3(1.0f);
+
+		glm::vec2 outlineSize = glm::vec2(0.005f, 0.0075f);
 		if (button.hover) {
+			outlineSize += outlineSize.x / 2.0f * std::sin(1.5f * counter * 2 * 3.14159f) + outlineSize.x / 2.0f;
+
 			color *= 1.25f;
 		}
 		if (!button.isEnabled()) {
 			color *= 0.1f;
 			textColor *= 0.5f;
 		}
-		glUniform3f(word_program_color, color.x, color.y, color.z);
 
-		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
-
+		draw_rect(button.pos, button.rad, color);
+		draw_rect(button.pos, button.rad + outlineSize, {1.0f, 1.0f, 1.0f});
 		draw_word(button.label, button.pos.x, button.pos.y, 1, textColor);
 	};
 
