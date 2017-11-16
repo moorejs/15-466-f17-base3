@@ -50,6 +50,8 @@ struct GameMode : public Mode {
 	} state;
 
     Ray getCameraRay(glm::vec2 mouse);
+	// counts elapsed time
+	float counter;
 
 	// controls:
 	struct Controls {
