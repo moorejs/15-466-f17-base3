@@ -6,6 +6,7 @@
 #include "Scene.hpp"
 #include "Socket.hpp"
 #include "ui/Button.hpp"
+#include "Collisions.h"
 
 #include <functional>
 #include <random>
@@ -47,6 +48,8 @@ struct GameMode : public Mode {
 		float overallTimer = 0.0f;
 		float powerTimer = 10.0f;
 	} state;
+
+    Ray getCameraRay(glm::vec2 mouse);
 
 	// controls:
 	struct Controls {

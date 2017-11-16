@@ -94,7 +94,7 @@ void Person::renderAll(Scene::Camera camera, std::list< Scene::Light > lights, P
 void Person::placeInScene(Collision* col){
 	pos = glm::vec3();
 	if(col){
-		BBox bounds = col->board;
+		BBox2D bounds = col->board;
 		do{
 			pos.x = bounds.minPt.x+EPS+(Person::random()-EPS)*(bounds.maxPt.x-bounds.minPt.x);
 			pos.y = bounds.minPt.y+EPS+(Person::random()-EPS)*(bounds.maxPt.y-bounds.minPt.y);

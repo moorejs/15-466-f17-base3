@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 	// Configuration:
 	struct {
 		std::string title = "Odd One Out";
-		glm::uvec2 size = glm::uvec2(640, 400);
+		glm::uvec2 size = 2u*glm::uvec2(640, 400);
 	} config;
 
 	//------------  initialization ------------
