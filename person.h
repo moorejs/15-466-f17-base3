@@ -1,9 +1,9 @@
 #pragma once
 
-#include <vector>
 #include <glm/glm.hpp>
-#include "Scene.hpp"
+#include <vector>
 #include "Collisions.h"
+#include "Scene.hpp"
 
 #include <stdlib.h>
 #include <time.h>
@@ -11,11 +11,11 @@
 
 #define NUM_PLAYER_CLASSES 10
 #define NUM_PLAYER_CLASSES_STR "10"
-class Person{
-public:
+class Person {
+ public:
 	static std::vector<Person*> people;
 	static std::function<float()> random;
-	static GLint personIdx,colors;
+	static GLint personIdx, colors;
 	static glm::vec3 PeopleColors[NUM_PLAYER_CLASSES];
 
 	/* TODO: fuuuuuture
@@ -31,11 +31,11 @@ public:
 	bool isVisible;
 	bool isAI;
 	time_t savedTime;
-	glm::vec3 pos,vel;
+	glm::vec3 pos, vel;
 	Scene::Object meshObject;
 	glm::quat rot;
-	
-	Person(){
+
+	Person() {
 		humanControlled = false;
 		isMoving = true;
 		isVisible = true;
@@ -46,20 +46,22 @@ public:
 
 	glm::vec3 randVel();
 	void placeInScene(Collision* col = NULL);
-	void move(float eps,Collision* col=NULL);
+	void move(float eps, Collision* col = NULL);
 
-    static void renderAll(Scene::Camera camera, std::list< Scene::Light > lights,Person player,Person cop);
+	static void moveAll(float eps, Collision* col = NULL) {
+		for (auto const& person : people)
+			person->move(eps, col);
+	}
+	static void freezeAll() {
+		for (auto const& person : people)
+			person->isMoving = false;
+	}
+	static void unfreezeAll() {
+		for (auto const& person : people)
+			person->isMoving = true;
+	}
 
-	static void moveAll(float eps,Collision* col=NULL){
-		for(auto const& person : people) person->move(eps,col);
-	}
-	static void freezeAll(){
-		for(auto const& person : people) person->isMoving = false;
-	}
-	static void unfreezeAll(){
-		for(auto const& person : people) person->isMoving = true;
-	}
-protected:
+ protected:
 	void checkCollision();
 };
 
