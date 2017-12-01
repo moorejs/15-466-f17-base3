@@ -37,7 +37,7 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Collision collisionFramework = Collision(BBox(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
+Collision collisionFramework = Collision(BBox2D(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
 // Attrib locations in staging_program:
 GLint word_program_Position = -1;
@@ -306,10 +306,10 @@ GameMode::GameMode() {
 	}
 	// TODO: asset pipeline bounding boxes. Hard coded for now.
 	// these are the four houses
-	collisionFramework.addBounds(BBox(glm::vec2(0.719, -1.003), glm::vec2(2.763, 2.991)));
-	collisionFramework.addBounds(BBox(glm::vec2(4.753, -2.318), glm::vec2(6.737, -0.24)));
-	collisionFramework.addBounds(BBox(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
-	collisionFramework.addBounds(BBox(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
+	collisionFramework.addBounds(BBox2D(glm::vec2(0.719, -1.003), glm::vec2(2.763, 2.991)));
+	collisionFramework.addBounds(BBox2D(glm::vec2(4.753, -2.318), glm::vec2(6.737, -0.24)));
+	collisionFramework.addBounds(BBox2D(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
+	collisionFramework.addBounds(BBox2D(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
 
 	snapshotBtn.pos = glm::vec2(-0.5f + 0.025f, -0.92f);
 	snapshotBtn.rad = glm::vec2(0.45f, 0.06f);
@@ -409,6 +409,21 @@ void GameMode::endGame() {
 	spawnCop();
 }
 
+Ray GameMode::getCameraRay(glm::vec2 mouse) {
+	glm::vec4 screenMouseH = glm::vec4(mouse.x, mouse.y, 0.5f, 1);
+	glm::mat4 projMat = scene.camera.make_projection();
+	glm::mat4 camMat = scene.camera.transform.make_world_to_local();
+
+	glm::mat4 screenMat = projMat * camMat;
+
+	glm::vec3 cameraCenter = scene.camera.transform.position;
+	glm::vec4 mouseWorldH = glm::inverse(screenMat) * screenMouseH;
+	glm::vec3 mouseWorld = glm::vec3(mouseWorldH.x, mouseWorldH.y, mouseWorldH.z) / mouseWorldH.w;
+
+	Ray r = Ray(cameraCenter, glm::normalize(mouseWorld - cameraCenter));
+
+	return r;
+}
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	if (sock && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
 		static constexpr int up = SDL_SCANCODE_W;
@@ -479,6 +494,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 						std::cout << "Thief NOT Found. Cops lose!"
 											<< "\n";
 					}
+
 				}
 				// DEPLOY COP
 				else {
@@ -492,8 +508,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	// temporary mouse movement for camera
 	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
-		mouse.x = (e.motion.x + 0.5f) / float(640) * 2.0f - 1.0f;
-		mouse.y = (e.motion.y + 0.5f) / float(400) * -2.0f + 1.0f;
+		mouse.x = (e.motion.x + 0.5f) / float(2 * 960) * 2.0f - 1.0f;
+		mouse.y = (e.motion.y + 0.5f) / float(2 * 600) * -2.0f + 1.0f;
 		if (e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
@@ -501,6 +517,16 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		snapshotBtn.hover = snapshotBtn.contains(mouse);
 		anonymousTipBtn.hover = anonymousTipBtn.contains(mouse);
 	} else if (e.type == SDL_MOUSEBUTTONDOWN) {
+		Ray r = getCameraRay(mouse);
+		for (auto const& person : Person::people) {
+			glm::vec3 pos = person->pos;
+			BBox box = BBox(glm::vec3(pos.x - 0.1, pos.y - 0.1, 0), glm::vec3(pos.x + 0.1, pos.y + 0.1, 2));
+			if (box.intersects(r)) {
+				person->scale = glm::vec3(0.1, 0.1, 0.1);
+				// TODO: Make person large?
+			}
+		}
+
 		if (snapshotBtn.hover && snapshotBtn.isEnabled()) {
 			snapshotBtn.onFire();
 		}
@@ -586,19 +612,6 @@ void GameMode::update(float elapsed) {
 	}
 }
 
-/*
-struct Ray{glm::vec3 start,dir;};
-	Ray getCameraRay(glm::vec2 pt){
-		glm::vec3 localpt = focal length / pt / fov;
-		glm::mat4 mat = camera.transform.get_local_to_world();
-		glm::vec4 world4 = mat*glm::vec4(localpt.x,localpt.y,localpt.z,1);
-		glm::vec3 world3 = glm::vec4(world4.x,world4.y,world4.z)/world4.w;
-
-		Ray r;
-		r.start = camera.transform.position;
-		r.dir = glm::normalize(world3-r.start);
-	}
-*/
 void GameMode::draw(glm::uvec2 const& drawable_size) {
 	screenSize = drawable_size;
 	// TODO: this is a affected by retina, still need to figure this out
@@ -802,8 +815,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	};
 
 	if (isTestimonyShowing) {
-		draw_word("ANONYMOUS TIP", 0, -1.25f);
-		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -1.5f);
+		draw_word("ANONYMOUS TIP", 0, 0);
+		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -0.5);
 	}
 
 	time_t curtime;
@@ -834,7 +847,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	draw_button(anonymousTipBtn);
 
 	if (gameResultPosted) {
-		draw_word(endGameTxt, 0, -0.7f);
+		draw_word(endGameTxt, 0, 0);
 	}
 
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);

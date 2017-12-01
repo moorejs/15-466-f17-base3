@@ -3,6 +3,7 @@
 #include "Mode.hpp"
 #include "StagingMode.hpp"
 
+#include "../shared/Collisions.h"
 #include "Random.hpp"
 #include "Scene.hpp"
 #include "Socket.hpp"
@@ -42,6 +43,7 @@ struct GameMode : public Mode {
 		float powerTimer = 10.0f;
 	} state;
 
+	Ray getCameraRay(glm::vec2 mouse);
 	// counts elapsed time
 	float counter;
 

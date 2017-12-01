@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 	// Configuration:
 	struct {
 		std::string title = "Odd One Out";
-		glm::uvec2 size = glm::uvec2(640, 400);
+		glm::uvec2 size = glm::uvec2(960, 600);
 	} config;
 
 	//------------  initialization ------------
@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
 		}
 
 		std::thread setup([&]() {
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 			if (position == "robber") {
 				staging->robberBtn.onFire();
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));

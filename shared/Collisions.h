@@ -4,10 +4,33 @@
 #include <vector>
 #include <stdio.h>
 
+struct Ray{
+  glm::vec3 start,dir;
+  Ray(){
+    start = glm::vec3();
+    dir = glm::vec3(0,0,1); //why not
+  }
+  Ray(glm::vec3 start,glm::vec3 dir){
+    this->start = start;
+    this->dir = dir;
+  }
+};
+
 struct BBox{
+	glm::vec3 min,max,center;
+	BBox(){min = max = center = glm::vec3();}
+	BBox(glm::vec3 Min,glm::vec3 Max){
+		min = Min;
+		max = Max;
+		center = 0.5f*(Max+Min);
+	}
+	bool intersects(Ray r);
+};
+
+struct BBox2D{
 	glm::vec2 minPt,maxPt,center;
-	BBox(){minPt = maxPt = center = glm::vec2();}
-	BBox(glm::vec2 Min,glm::vec2 Max){
+	BBox2D(){minPt = maxPt = center = glm::vec2();}
+	BBox2D(glm::vec2 Min,glm::vec2 Max){
 		minPt = Min;
 		maxPt = Max;
 		center = 0.5f*(Max+Min);
@@ -17,28 +40,28 @@ struct BBox{
 struct Hit{
 	bool hit;
 	glm::vec2 pt;
-	BBox closest;
+	BBox2D closest;
 	Hit(){hit=false;}
 	Hit(glm::vec2 pt){hit=true;this->pt = pt;}
-	Hit(glm::vec2 pt,BBox box){hit=true;this->pt=pt;closest=box;}
+	Hit(glm::vec2 pt,BBox2D box){hit=true;this->pt=pt;closest=box;}
 };
 
 class Collision{
 public:
-	BBox board;
-	std::vector<BBox> inBounds;
+	BBox2D board;
+	std::vector<BBox2D> inBounds;
 
-	Collision(BBox board){
+	Collision(BBox2D board){
 		this->board = board;
 	}
-	void addBounds(BBox box){
+	void addBounds(BBox2D box){
 		inBounds.push_back(box);
 	}
 	Hit checkHit(glm::vec2 pt){
-		return checkHit(BBox(pt,pt));
+		return checkHit(BBox2D(pt,pt));
 	}
 	
-	Hit AABBCollision(BBox bcheck, BBox box){
+	Hit AABBCollision(BBox2D bcheck, BBox2D box){
 		if(bcheck.minPt.x < box.maxPt.x && 
 			bcheck.maxPt.x > box.minPt.x &&
 			bcheck.minPt.y < box.maxPt.y &&
@@ -48,7 +71,7 @@ public:
 		return Hit();
 	}
 
-	Hit checkHit(BBox box){
+	Hit checkHit(BBox2D box){
 		if(AABBCollision(box,board).hit){
 		}else{
 			return Hit(box.center);

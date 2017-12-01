@@ -138,8 +138,8 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 
 	if (event.type == SDL_MOUSEMOTION) {
 		// TODO: fixed screen size
-		mouse.x = (event.motion.x + 0.5f) / 640.0f * 2.0f - 1.0f;
-		mouse.y = (event.motion.y + 0.5f) / 400.0f * -2.0f + 1.0f;
+		mouse.x = (event.motion.x + 0.5f) / 960.0f * 2.0f - 1.0f;
+		mouse.y = (event.motion.y + 0.5f) / 600.0f * -2.0f + 1.0f;
 
 		for (Button* button : buttons) {
 			button->hover = button->contains(mouse);
