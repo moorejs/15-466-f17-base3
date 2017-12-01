@@ -68,43 +68,40 @@ StagingMode::StagingMode() {
 
 	glm::vec3 btnColor = glm::vec3(0.75f, 0.0f, 0.0f);
 
-	Button cop;
-	cop.color = btnColor;
-	cop.pos = glm::vec2(-0.5f, 0.65f);
-	cop.rad = glm::vec2(0.4f, 0.1f);
-	cop.label = "COP";
+	copBtn.color = btnColor;
+	copBtn.pos = glm::vec2(-0.5f, 0.65f);
+	copBtn.rad = glm::vec2(0.4f, 0.1f);
+	copBtn.label = "COP";
 
-	cop.isEnabled = [&]() {
+	copBtn.isEnabled = [&]() {
 		return !stagingState.starting && stagingState.player && stagingState.player->role != StagingState::Role::COP;
 	};
-	cop.onFire = [&]() {
+	copBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::COP}));
 
 		// just accept latency.. stagingState.players[stagingState.playerId].role = StagingState::Role::COP;
 	};
 
-	Button robber;
-	robber.color = btnColor;
-	robber.pos = glm::vec2(0.5f, 0.65f);
-	robber.rad = glm::vec2(0.4f, 0.1f);
-	robber.label = "ROBBER";
+	robberBtn.color = btnColor;
+	robberBtn.pos = glm::vec2(0.5f, 0.65f);
+	robberBtn.rad = glm::vec2(0.4f, 0.1f);
+	robberBtn.label = "ROBBER";
 
-	robber.isEnabled = [&]() { return !stagingState.starting && stagingState.player && !stagingState.robber; };
-	robber.onFire = [&]() {
+	robberBtn.isEnabled = [&]() { return !stagingState.starting && stagingState.player && !stagingState.robber; };
+	robberBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::ROBBER}));
 
 		// accepting latency for now.. stagingState.players[stagingState.playerId].role = StagingState::Role::ROBBER;
 	};
 
-	Button start;
-	start.color = btnColor;
-	start.pos = glm::vec2(0.0f, -0.35f);
-	start.rad = glm::vec2(0.75f, 0.1f);
-	start.label = "START GAME";
-	start.isEnabled = [&]() {
+	startBtn.color = btnColor;
+	startBtn.pos = glm::vec2(0.0f, -0.35f);
+	startBtn.rad = glm::vec2(0.75f, 0.1f);
+	startBtn.label = "START GAME";
+	startBtn.isEnabled = [&]() {
 		return stagingState.players.size() >= 2 && stagingState.undecided == 0 && stagingState.robber;
 	};
-	start.onFire = [&]() {
+	startBtn.onFire = [&]() {
 		Packet* out;
 		if (stagingState.starting) {
 			out = Packet::pack(MessageType::STAGING_VETO_START);
@@ -115,9 +112,9 @@ StagingMode::StagingMode() {
 		sock->writeQueue.enqueue(out);
 	};
 
-	buttons.push_back(std::move(cop));
-	buttons.push_back(std::move(robber));
-	buttons.push_back(std::move(start));
+	buttons.emplace_back(&robberBtn);
+	buttons.emplace_back(&copBtn);
+	buttons.emplace_back(&startBtn);
 }
 
 // Connect to server
@@ -144,16 +141,16 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 		mouse.x = (event.motion.x + 0.5f) / 640.0f * 2.0f - 1.0f;
 		mouse.y = (event.motion.y + 0.5f) / 400.0f * -2.0f + 1.0f;
 
-		for (Button& button : buttons) {
-			button.hover = button.contains(mouse);
+		for (Button* button : buttons) {
+			button->hover = button->contains(mouse);
 		}
 	}
 
 	if (event.type == SDL_MOUSEBUTTONDOWN) {
-		for (Button& button : buttons) {
-			if (button.hover && button.isEnabled()) {
-				DEBUG_PRINT("Clicked on " << button.label);
-				button.onFire();
+		for (const Button* button : buttons) {
+			if (button->hover && button->isEnabled()) {
+				DEBUG_PRINT("Clicked on " << button->label);
+				button->onFire();
 				return true;
 			}
 		}
@@ -298,17 +295,17 @@ void StagingMode::update(float elapsed) {
 				std::cout << "Player " << stagingState.players[msg->id]->name << " voted to start the game." << std::endl;
 				stagingState.starting = true;
 
-				buttons[2].label = "VETO START";
+				startBtn.label = "VETO START";
 
 				break;
 			}
 
 			case MessageType::STAGING_VETO_START: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
-				std::cout << "Player " << stagingState.players[msg->id]->name << " vetoed the game start." << std::endl;
+				std::cout << "Player " << stagingState.players[msg->id]->name << " vetoed the game startBtn." << std::endl;
 				stagingState.starting = false;
 
-				buttons[2].label = "START GAME";
+				startBtn.label = "START GAME";
 
 				break;
 			}
@@ -436,9 +433,9 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 			}
 		}
 
-		for (const auto& button : buttons) {
-			draw_button(button);
-			draw_word(button.label, button.pos.x, button.pos.y);
+		for (const Button* button : buttons) {
+			draw_button(*button);
+			draw_word(button->label, button->pos.x, button->pos.y);
 		};
 	}
 }

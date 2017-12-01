@@ -1,5 +1,8 @@
-dist/main
-dist/main.exe
+dist/client
+dist/client.exe
+dist/server
+dist/server.exe
 objs
 dist/SDL2.dll
 kit-libs-*
+.vscode

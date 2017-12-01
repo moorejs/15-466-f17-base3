@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Mode.hpp"
+#include "StagingMode.hpp"
 
 #include "Random.hpp"
 #include "Scene.hpp"
@@ -9,13 +10,6 @@
 
 #include <functional>
 #include <random>
-
-struct GameSettings {
-	float POWER_TIMEOUT = 15.0f;
-
-	int seed;
-	bool localMultiplayer;
-};
 
 struct GameMode : public Mode {
 	GameMode();

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <vector>
 #include "Collisions.h"
-#include "Scene.hpp"
 
 #include <stdlib.h>
 #include <time.h>
@@ -15,7 +15,7 @@ class Person {
  public:
 	static std::vector<Person*> people;
 	static std::function<float()> random;
-	static GLint personIdx, colors;
+	// static GLint personIdx, colors;
 	static glm::vec3 PeopleColors[NUM_PLAYER_CLASSES];
 
 	/* TODO: fuuuuuture
@@ -31,8 +31,7 @@ class Person {
 	bool isVisible;
 	bool isAI;
 	time_t savedTime;
-	glm::vec3 pos, vel;
-	Scene::Object meshObject;
+	glm::vec3 pos, vel, scale;
 	glm::quat rot;
 
 	Person() {
@@ -46,6 +45,7 @@ class Person {
 
 	glm::vec3 randVel();
 	void placeInScene(Collision* col = NULL);
+	void setVel(bool up, bool down, bool left, bool right);
 	void move(float eps, Collision* col = NULL);
 
 	static void moveAll(float eps, Collision* col = NULL) {

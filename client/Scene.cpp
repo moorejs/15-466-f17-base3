@@ -6,19 +6,13 @@
 #include <iostream>
 
 glm::mat4 Scene::Transform::make_local_to_parent() const {
-	return glm::mat4( //translate
-		glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-		glm::vec4(position, 1.0f)
-	)
-	* glm::mat4_cast(rotation) //rotate
-	* glm::mat4( //scale
-		glm::vec4(scale.x, 0.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, scale.z, 0.0f),
-		glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-	);
+	return glm::mat4(	// translate
+						 glm::vec4(1.0f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+						 glm::vec4(position, 1.0f)) *
+				 glm::mat4_cast(rotation)	// rotate
+				 * glm::mat4(							 // scale
+							 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+							 glm::vec4(0.0f, 0.0f, scale.z, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 }
 
 glm::mat4 Scene::Transform::make_parent_to_local() const {
@@ -26,19 +20,13 @@ glm::mat4 Scene::Transform::make_parent_to_local() const {
 	inv_scale.x = (scale.x == 0.0f ? 0.0f : 1.0f / scale.x);
 	inv_scale.y = (scale.y == 0.0f ? 0.0f : 1.0f / scale.y);
 	inv_scale.z = (scale.z == 0.0f ? 0.0f : 1.0f / scale.z);
-	return glm::mat4( //un-scale
-		glm::vec4(inv_scale.x, 0.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, inv_scale.y, 0.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, inv_scale.z, 0.0f),
-		glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)
-	)
-	* glm::mat4_cast(glm::inverse(rotation)) //un-rotate
-	* glm::mat4( //un-translate
-		glm::vec4(1.0f, 0.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, 1.0f, 0.0f, 0.0f),
-		glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-		glm::vec4(-position, 1.0f)
-	);
+	return glm::mat4(	// un-scale
+						 glm::vec4(inv_scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, inv_scale.y, 0.0f, 0.0f),
+						 glm::vec4(0.0f, 0.0f, inv_scale.z, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) *
+				 glm::mat4_cast(glm::inverse(rotation))	// un-rotate
+				 * glm::mat4(														 // un-translate
+							 glm::vec4(1.0f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+							 glm::vec4(-position, 1.0f));
 }
 
 glm::mat4 Scene::Transform::make_local_to_world() const {
@@ -57,6 +45,7 @@ glm::mat4 Scene::Transform::make_world_to_local() const {
 	}
 }
 
+/*
 void Scene::Transform::DEBUG_assert_valid_pointers() const {
 	if (parent == nullptr) {
 		//if no parent, can't have siblings:
@@ -71,38 +60,11 @@ void Scene::Transform::DEBUG_assert_valid_pointers() const {
 	assert(next_sibling == nullptr || next_sibling->prev_sibling == this);
 	assert(last_child == nullptr || last_child->parent == this);
 }
-
-
-void Scene::Transform::set_parent(Transform *new_parent, Transform *before) {
-	DEBUG_assert_valid_pointers();
-	assert(before == nullptr || (new_parent != nullptr && before->parent == new_parent));
-	if (parent) {
-		//remove from existing parent:
-		if (prev_sibling) prev_sibling->next_sibling = next_sibling;
-		if (next_sibling) next_sibling->prev_sibling = prev_sibling;
-		else parent->last_child = prev_sibling;
-		next_sibling = prev_sibling = nullptr;
-	}
-	parent = new_parent;
-	if (parent) {
-		//add to new parent:
-		if (before) {
-			prev_sibling = before->prev_sibling;
-			next_sibling = before;
-			next_sibling->prev_sibling = this;
-		} else {
-			prev_sibling = parent->last_child;
-			parent->last_child = this;
-		}
-		if (prev_sibling) prev_sibling->next_sibling = this;
-	}
-	DEBUG_assert_valid_pointers();
-}
-
+*/
 //---------------------------
 
 glm::mat4 Scene::Camera::make_projection() const {
-	return glm::infinitePerspective( fovy, aspect, near );
+	return glm::infinitePerspective(fovy, aspect, near);
 }
 
 //---------------------------
@@ -111,27 +73,27 @@ void Scene::render() {
 	glm::mat4 world_to_camera = camera.transform.make_world_to_local();
 	glm::mat4 world_to_clip = camera.make_projection() * world_to_camera;
 
-	//Get world-space position of all lights:
-	for (auto const &light : lights) {
+	// Get world-space position of all lights:
+	for (auto const& light : lights) {
 		glm::mat4 mv = world_to_camera * light.transform.make_local_to_world();
 		(void)mv;
 	}
 
-	for (auto const &object : objects) {
+	for (auto const& object : objects) {
 		glm::mat4 local_to_world = object.transform.make_local_to_world();
 
-		//compute modelview+projection (object space to clip space) matrix for this object:
+		// compute modelview+projection (object space to clip space) matrix for this object:
 		glm::mat4 mvp = world_to_clip * local_to_world;
 
-		//compute modelview (object space to camera local space) matrix for this object:
+		// compute modelview (object space to camera local space) matrix for this object:
 		glm::mat4 mv = local_to_world;
 
-		//NOTE: inverse cancels out transpose unless there is scale involved
+		// NOTE: inverse cancels out transpose unless there is scale involved
 		glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
 
-		//set up program uniforms:
+		// set up program uniforms:
 		glUseProgram(object.program);
-		glUniform1i(object.classIndex,-1); //everything here doesn't have a class
+		glUniform1i(object.classIndex, -1);	// everything here doesn't have a class
 		if (object.program_mvp != -1U) {
 			glUniformMatrix4fv(object.program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 		}
@@ -142,11 +104,12 @@ void Scene::render() {
 			glUniformMatrix3fv(object.program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
 		}
 
-		if (object.set_uniforms) object.set_uniforms(object);
+		if (object.set_uniforms)
+			object.set_uniforms(object);
 
 		glBindVertexArray(object.vao);
 
-		//draw the object:
+		// draw the object:
 		glDrawArrays(GL_TRIANGLES, object.start, object.count);
 	}
 }

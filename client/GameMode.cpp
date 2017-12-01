@@ -14,9 +14,9 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include "Collisions.h"
+#include "../shared/Collisions.h"
+#include "../shared/person.h"
 #include "Sounds.h"
-#include "person.h"
 
 bool isSnapshotOn = false;
 bool isTestimonyShowing = false;
@@ -93,7 +93,7 @@ Uint32 enableSnapShot(Uint32 interval = 0, void* param = nullptr) {
 
 Uint32 resetScales(Uint32 interval, void* param) {
 	for (auto const& person : Person::people) {
-		person->meshObject.transform.scale = glm::vec3(0.012f, 0.012f, 0.012f);
+		person->scale = glm::vec3(0.012f, 0.012f, 0.012f);
 	}
 
 	SDL_RemoveTimer(reset_scale_timer);
@@ -120,8 +120,8 @@ Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
 }
 
 void spawnCop() {
-	cop.meshObject.transform.scale = 0.018f * glm::vec3(1, 1, 1);
-	cop.meshObject.transform.position = glm::vec3(-1.0f, 5.5f, 0.0f);
+	cop.scale = 0.018f * glm::vec3(1, 1, 1);
+	cop.pos = glm::vec3(-1.0f, 5.5f, 0.0f);
 	cop.isMoving = true;
 }
 
@@ -225,8 +225,8 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 	game_program_mv = ret->getUniformLocation("mv", GLProgram::MissingIsWarning);
 	game_program_itmv = ret->getUniformLocation("itmv", GLProgram::MissingIsWarning);
 	game_program_roughness = (*ret)["roughness"];
-	Person::personIdx = ret->getUniformLocation("index", GLProgram::MissingIsWarning);
-	Person::colors = ret->getUniformLocation("people_colors", GLProgram::MissingIsWarning);
+	// Person::personIdx = ret->getUniformLocation("index", GLProgram::MissingIsWarning);
+	// Person::colors = ret->getUniformLocation("people_colors", GLProgram::MissingIsWarning);
 	return ret;
 });
 
@@ -338,13 +338,13 @@ GameMode::GameMode() {
 Sound bgmusic;
 void GameMode::reset(const GameSettings& gameSettings) {
 	settings = gameSettings;
+
 	twister.seed(settings.seed);
-	bgmusic = Sound("../sounds/bensound-summer.wav", true);
-	bgmusic.play();
+	// bgmusic = Sound("../sounds/bensound-summer.wav", true);
+	// bgmusic.play();
 	int numPlayers = 250;
 
 	Person::random = rand;
-	MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 	for (int i = 0; i <= numPlayers; i++) {
 		Person* cur;
 		if (i == numPlayers) {
@@ -355,22 +355,23 @@ void GameMode::reset(const GameSettings& gameSettings) {
 			cur = &cop;
 		} else
 			cur = makeAI();
-		cur->meshObject.transform.rotation = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
-		cur->meshObject.transform.scale = 0.012f * glm::vec3(1, 1, 1);
+		cur->rot = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
+		cur->scale = 0.012f * glm::vec3(1, 1, 1);
 
-		cur->meshObject.program = game_program->program;
-		cur->meshObject.program_mvp = game_program_mvp;
-		cur->meshObject.program_mv = game_program_mv;
-		cur->meshObject.program_itmv = game_program_itmv;
-		cur->meshObject.vao = binding->array;
-		cur->meshObject.start = mesh.start;
-		cur->meshObject.count = mesh.count;
-		cur->meshObject.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };
+		/*
+				cur->meshObject.program = game_program->program;
+				cur->meshObject.program_mvp = game_program_mvp;
+				cur->meshObject.program_mv = game_program_mv;
+				cur->meshObject.program_itmv = game_program_itmv;
+				cur->meshObject.vao = binding->array;
+				cur->meshObject.start = mesh.start;
+				cur->meshObject.count = mesh.count;
+				cur->meshObject.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };*/
 		cur->placeInScene((i >= numPlayers - 1) ? NULL : &collisionFramework);
 
 		// cop
 		if (i == numPlayers - 1) {
-			cur->meshObject.transform.scale = 0.0f * glm::vec3(1, 1, 1);
+			cur->scale = 0.0f * glm::vec3(1.0f);
 		}
 	}
 }
@@ -410,22 +411,28 @@ void GameMode::endGame() {
 
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	if (sock && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
-		Packet* input = new Packet();
+		static constexpr int up = SDL_SCANCODE_W;
+		static constexpr int down = SDL_SCANCODE_S;
+		static constexpr int left = SDL_SCANCODE_A;
+		static constexpr int right = SDL_SCANCODE_D;
 
-		input->payload.push_back(MessageType::INPUT);
-		input->payload.push_back(e.type == SDL_KEYUP ? 1 : 0);
-
-		// assume these can fit in a byte each
-		input->payload.push_back(e.key.keysym.sym);
-		input->payload.push_back(e.key.keysym.scancode);
-
-		input->header = input->payload.size();
-
-		sock->writeQueue.enqueue(input);
-
-		switch (e.key.keysym.sym) {
-			case SDLK_LEFT:
+		switch (e.key.keysym.scancode) {
+			case up:
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {0}));
 				break;
+
+			case down:
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {1}));
+				break;
+
+			case left:
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {2}));
+				break;
+
+			case right:
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {3}));
+				break;
+
 			default:
 				break;
 		}
@@ -451,7 +458,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 				}
 
 				if (minDistance < 0.4f) {
-					closestPerson->meshObject.transform.scale = glm::vec3(0.02f, 0.02f, 0.02f);
+					closestPerson->scale = glm::vec3(0.02f, 0.02f, 0.02f);
 					reset_scale_timer = SDL_AddTimer(2000, resetScales, NULL);
 				}
 
@@ -465,7 +472,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 					double calcdistance = pow(distancex + distancey, 0.5f);
 
 					if (calcdistance < 0.3f) {
-						player.meshObject.transform.scale = 0.016f * glm::vec3(1, 1, 1);
+						player.scale = 0.016f * glm::vec3(1, 1, 1);
 						std::cout << "Thief Found"
 											<< "\n";
 					} else {
@@ -526,36 +533,18 @@ void GameMode::update(float elapsed) {
 
 	state.powerTimer += elapsed;
 
-	static auto move = [&](bool up, bool left, bool right, bool down) {
-		glm::vec3 vel = glm::vec3(0.0f);
+	static const uint8_t* keys = SDL_GetKeyboardState(NULL);
 
-		if (up) {
-			vel.x += 1;
-		}
-		if (down) {
-			vel.x -= 1;
-		}
-		if (left) {
-			vel.y += 1;
-		}
-		if (right) {
-			vel.y -= 1;
-		}
+	if (settings.clientSidePrediction) {
+		if (gameEnded)
+			cop.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
+		else
+			player.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
 
-		return glm::normalize(vel);
-	};
-
-	static uint8_t const* keys = SDL_GetKeyboardState(NULL);
-	glm::vec3 vel = move(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D], keys[SDL_SCANCODE_S]);
-
-	if (gameEnded)
-		cop.vel = vel;
-	else
-		player.vel = vel;
-
+		player.move(elapsed, &collisionFramework);
+		cop.move(elapsed, &collisionFramework);
+	}
 	Person::moveAll(elapsed, &collisionFramework);
-	player.move(elapsed, &collisionFramework);
-	cop.move(elapsed, &collisionFramework);
 
 	time_t curtime;
 	time(&curtime);
@@ -575,7 +564,15 @@ void GameMode::update(float elapsed) {
 		}
 
 		switch (out->payload[0]) {
-			case MessageType::INPUT: {
+			case MessageType::GAME_ROBBER_POS: {
+				player.pos.x = *reinterpret_cast<float*>(&out->payload[1]);
+				player.pos.y = *reinterpret_cast<float*>(&out->payload[1 + sizeof(float)]);
+
+				// TODO: update rotation.. might just go with a local value, also move the player locally and then snap to
+				// correct value
+
+				std::cout << "New robber position: " << player.pos.x << " " << player.pos.y << std::endl;
+
 				break;
 			}
 
@@ -644,7 +641,81 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	scene.render();
-	Person::renderAll(scene.camera, scene.lights, player, cop);
+
+	static bool colorsNotInit = false;
+
+	static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
+
+	static auto make_local_to_parent = [](glm::vec3 position, glm::quat rotation, glm::vec3 scale) {
+		return glm::mat4(	// translate
+							 glm::vec4(1.0f, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 0.0f), glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+							 glm::vec4(position, 1.0f)) *
+					 glm::mat4_cast(rotation)	// rotate
+					 * glm::mat4(							 // scale
+								 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
+								 glm::vec4(0.0f, 0.0f, scale.z, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+	};
+	static auto renderAll = [&](Scene::Camera camera, std::list<Scene::Light> lights, Person player, Person cop) {
+		glm::mat4 world_to_camera = camera.transform.make_world_to_local();
+		glm::mat4 world_to_clip = camera.make_projection() * world_to_camera;
+
+		if (colorsNotInit) {
+			for (int i = 0; i < NUM_PLAYER_CLASSES; i++) {
+				Person::PeopleColors[i] = glm::vec3(Person::random(), Person::random(), Person::random());
+			}
+			colorsNotInit = false;
+		}
+
+		// Get world-space position of all lights:
+		for (auto const& light : lights) {
+			glm::mat4 mv = world_to_camera * light.transform.make_local_to_world();
+			(void)mv;
+		}
+
+		for (unsigned int i = 0; i <= Person::people.size(); i++) {
+			Person* person;
+			if (i == Person::people.size())
+				person = &player;
+			else if (i == Person::people.size() - 1)
+				person = &cop;
+			else
+				person = Person::people[i];
+
+			glm::mat4 local_to_world = make_local_to_parent(person->pos, person->rot, person->scale);
+
+			// compute modelview+projection (object space to clip space) matrix for this object:
+			glm::mat4 mvp = world_to_clip * local_to_world;
+
+			// compute modelview (object space to camera local space) matrix for this object:
+			glm::mat4 mv = local_to_world;
+
+			// NOTE: inverse cancels out transpose unless there is scale involved
+			glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
+
+			// set up program uniforms:
+			glUseProgram(game_program->program);
+			if (game_program_mvp != -1U) {
+				glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+			}
+			if (game_program_mv != -1U) {
+				glUniformMatrix4x3fv(game_program_mv, 1, GL_FALSE, glm::value_ptr(mv));
+			}
+			if (game_program_itmv != -1U) {
+				glUniformMatrix3fv(game_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
+			}
+			// glUniform1i(Person::personIdx, person->playerClass);
+			// glUniform3fv(Person::colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
+
+			glUniform1f(game_program_roughness, 1.0f);
+
+			glBindVertexArray(binding->array);
+
+			// draw the object:
+			glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+		}
+	};
+	renderAll(scene.camera, scene.lights, player, cop);
+
 	float aspect = drawable_size.x / float(drawable_size.y);
 	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
 	glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);

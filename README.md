@@ -1,3 +1,13 @@
+# Build
+
+Just use the build script provided in build-run.sh. It starts two clients and the server.
+
+The client can be build by going to the `client` directory and running `jam`. To enable the DEBUG flag, add `-sDEBUG=true`.
+
+The server can be build by going to the `server` directory and running `jam`. To enable the DEBUG flag, add `-sDEBUG=true`.
+
+# Other
+
 Temp human model in scene is from http://wiki.polycount.com/wiki/BaseMesh
 
 NOTE: please fill in the first section with information about your game.

@@ -6,21 +6,21 @@
 
 #include <iostream>
 
-#include <cstdio>
-#include <cstdlib>
+#include <arpa/inet.h>
+#include <netdb.h>	// getaddrinfo
+#include <netinet/in.h>
+#include <sys/socket.h>	// getaddrinfo
+#include <sys/types.h>	 // getaddrinfo
 #include <unistd.h>
 #include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <sys/types.h> // getaddrinfo
-#include <sys/socket.h> // getaddrinfo
-#include <netdb.h> // getaddrinfo
-#include <netinet/in.h>
-#include <arpa/inet.h>
 
-#include "queue/readerwriterqueue.h"
+#include "../shared/queue/readerwriterqueue.h"
 
-using moodycamel::ReaderWriterQueue;
 using moodycamel::BlockingReaderWriterQueue;
+using moodycamel::ReaderWriterQueue;
 
 enum MessageType {
 	STAGING_PLAYER_CONNECT,
@@ -32,6 +32,7 @@ enum MessageType {
 	STAGING_ROLE_CHANGE_REJECTION,
 	STAGING_PLAYER_SYNC,
 	INPUT,
+	GAME_ROBBER_POS,
 };
 
 struct Packet {
@@ -59,26 +60,21 @@ struct SimpleMessage {
 };
 
 class Socket {
-
 	int fd;
 	std::atomic<bool> connected;
 	// TODO: probably can use std::memory_order_relaxed for operations on connected
 	// http://en.cppreference.com/w/cpp/atomic/atomic/store
 
-public:
+ public:
 	// no move or copying
 	Socket(const Socket&) = delete;
 	Socket& operator=(const Socket&) = delete;
 	Socket(Socket&& other) = delete;
 	Socket& operator=(Socket&&) = delete;
 
-	void close() {
-		::close(fd);
-	}
+	void close() { ::close(fd); }
 
-	bool isConnected() {
-		return connected;
-	}
+	bool isConnected() { return connected; }
 
 	// connect client
 	static Socket* connect(const std::string& hostname, const std::string& port) {
@@ -137,39 +133,38 @@ public:
 	ReaderWriterQueue<Packet*> readQueue;
 	BlockingReaderWriterQueue<Packet*> writeQueue;
 
-private:
+ private:
 	Socket(int fd)
-		: fd(fd),
-			connected(true),
-			readThread([&]() {
-				while (true) {
-					if (!connected) {
-						std::cout << "Disconnected, exiting read thread" << std::endl;
-						return;
+			: fd(fd),
+				connected(true),
+				readThread([&]() {
+					while (true) {
+						if (!connected) {
+							std::cout << "Disconnected, exiting read thread" << std::endl;
+							return;
+						}
+
+						readQueue.enqueue(getPacket());
 					}
+				}),
+				writeThread([&]() {
+					while (true) {
+						Packet* packet;
+						writeQueue.wait_dequeue(packet);
 
-					readQueue.enqueue(getPacket());
-				}
-			}),
-			writeThread([&]() {
-				while (true) {
-					Packet* packet;
-					writeQueue.wait_dequeue(packet);
+						if (!packet) {
+							continue;
+						}
 
-					if (!packet) {
-						continue;
+						if (!connected) {
+							delete packet;
+							std::cout << "Disconnected, not writing packet and exiting write thread" << std::endl;
+							return;
+						}
+
+						sendPacket(packet);
 					}
-
-					if (!connected) {
-						delete packet;
-						std::cout << "Disconnected, not writing packet and exiting write thread" << std::endl;
-						return;
-					}
-
-					sendPacket(packet);
-				}
-			})
-	{
+				}) {
 		readThread.detach();
 		writeThread.detach();
 	}

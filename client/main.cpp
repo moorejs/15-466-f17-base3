@@ -17,11 +17,12 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 
 #include "Sounds.h"
 
 int main(int argc, char** argv) {
-	Sound::init(argc, argv);
+	// Sound::init(argc, argv);
 
 	// Configuration:
 	struct {
@@ -122,8 +123,39 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	game->reset(settings);	// temp
-	Mode::set_current(game);
+	std::string startingMode = argc > 1 ? argv[1] : "";
+	std::string position = argc > 2 ? argv[2] : "";
+
+	std::cout << "Starting mode: " << startingMode << std::endl;
+	if (startingMode == "staging") {
+		staging->reset();
+		Mode::set_current(staging);
+
+		if (position == "robber") {
+			SDL_SetWindowPosition(window, 0, 0);
+		} else {
+			SDL_SetWindowPosition(window, config.size.x, 0);
+		}
+
+		std::thread setup([&]() {
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			if (position == "robber") {
+				staging->robberBtn.onFire();
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				staging->startBtn.onFire();
+			} else {
+				staging->copBtn.onFire();
+			}
+		});
+		setup.detach();
+
+	} else if (startingMode == "game") {
+		// TODO: this isn't connected to the server
+		game->reset(settings);
+		Mode::set_current(game);
+	} else {
+		Mode::set_current(menu);
+	}
 
 	//------------ game loop ------------
 
@@ -184,7 +216,7 @@ int main(int argc, char** argv) {
 
 	SDL_DestroyWindow(window);
 	window = NULL;
-	Sound::cleanup();
+	// Sound::cleanup();
 
 	return 0;
 }

@@ -8,8 +8,8 @@
 std::vector<Person*> Person::people = std::vector<Person*>();
 glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3()};
 std::function<float()> Person::random;
-GLint Person::personIdx = -1;
-GLint Person::colors = -1;
+// GLint Person::personIdx = -1;
+// GLint Person::colors = -1;
 
 glm::vec3 Person::randVel() {
 	// civilians need to match how player moves
@@ -38,9 +38,25 @@ void Person::placeInScene(Collision* col) {
 			pos.y = bounds.minPt.y + EPS + (Person::random() - EPS) * (bounds.maxPt.y - bounds.minPt.y);
 		} while (col->checkHit(glm::vec2(pos.x, pos.y)).hit);
 	}
-	meshObject.transform.position = pos;
-	rot = meshObject.transform.rotation;											 // track original rotation
 	playerClass = int(Person::random() * NUM_PLAYER_CLASSES);	// give random player class
+}
+
+// set player velocity based on controls
+void Person::setVel(bool up, bool down, bool left, bool right) {
+	vel = glm::vec3(0.0f);
+
+	if (up)
+		vel.x += 1.0f;
+	if (down)
+		vel.x -= 1.0f;
+	if (left)
+		vel.y += 1.0f;
+	if (right)
+		vel.y -= 1.0f;
+
+	if (vel.x != 0.0f || vel.y != 0.0f) {
+		vel = glm::normalize(vel);
+	}
 }
 
 void Person::move(float eps, Collision* col) {
@@ -55,7 +71,7 @@ void Person::move(float eps, Collision* col) {
 
 		if (glm::length(vel) > 0.1) {
 			float angle = atan2(vel.x, -vel.y);
-			meshObject.transform.rotation = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) * rot);
+			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) * rot);
 
 			if (isAI) {
 				time_t curtime;
@@ -64,7 +80,5 @@ void Person::move(float eps, Collision* col) {
 					vel = randVel();
 			}
 		}
-
-		meshObject.transform.position = pos;
 	}
 }

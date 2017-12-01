@@ -1,0 +1,45 @@
+#TODO: windows
+
+if $(OS) = MACOSX {
+	KIT_LIBS = ../kit-libs-osx ;
+	C++ = clang++ ;
+	LINK = clang++ ;
+} else if $(OS) = LINUX {
+	KIT_LIBS = ../kit-libs-linux ;
+	C++ = g++ ;
+	LINK = g++ ;
+}
+
+C++FLAGS =
+		-std=c++14 -g -Wall -Werror
+		-I$(KIT_LIBS)/glm/include
+		;
+
+if $(DEBUG) = true {
+	C++FLAGS = $(C++FLAGS) -DDEBUG ;
+	LINKFLAGS = $(LINKFLAGS) -DDEBUG ;
+}
+
+LINKFLAGS = -std=c++14 -g -Wall -Werror ;
+
+LOCAL =
+	;
+
+NAMES =
+  server_main
+	person
+	Collisions
+	;
+
+LOCATE_TARGET = ../objs ;
+Objects $(LOCAL:S=.cpp) ;
+
+# have to avoid name conflict with server main
+Object server_main.o : main.cpp ;
+
+# couldn't get shared to work in a nice way
+Object person.o : ../shared/person.cpp ;
+Object Collisions.o : ../shared/Collisions.cpp ;
+
+LOCATE_TARGET = ../dist ;
+MainFromObjects server : $(NAMES:S=$(SUFOBJ)) ;
