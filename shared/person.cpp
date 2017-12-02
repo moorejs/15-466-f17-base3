@@ -5,6 +5,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
+
+const glm::vec3 Person::BASE_SCALE = glm::vec3(0.012f);
+
 std::vector<Person*> Person::people = std::vector<Person*>();
 glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3()};
 std::function<float()> Person::random;

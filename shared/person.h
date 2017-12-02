@@ -13,6 +13,9 @@
 #define NUM_PLAYER_CLASSES_STR "10"
 class Person {
  public:
+
+	static const glm::vec3 BASE_SCALE;
+
 	static std::vector<Person*> people;
 	static std::function<float()> random;
 	// static GLint personIdx, colors;
@@ -41,6 +44,7 @@ class Person {
 		isAI = false;
 		vel = glm::vec3();
 		playerClass = -1;
+		scale = BASE_SCALE;
 	}
 
 	glm::vec3 randVel();

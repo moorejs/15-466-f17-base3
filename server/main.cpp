@@ -10,6 +10,7 @@
 #include "../shared/queue/readerwriterqueue.h"
 
 #include "../shared/person.h"
+#include "../shared/State.hpp"
 
 // TODO: will have to do collision
 
@@ -74,12 +75,18 @@ int main(void) {
 		float startingTimer = 0.0f;
 		Client* robber = nullptr;	// everyone else assumed to be cop
 		unsigned playerUnready = 0;
+
+		// TODO: this should be in a settings struct
+		const float POWER_LIMIT = 10.0f;
 		uint8_t seed = 200;
 	} stagingState;
 
 	struct GameState {
 		Person* robber;
 		Person* cop;
+
+		float powerTimer = 0.0f;
+		Power activePower = Power::NONE;
 	} gameState;
 
 	// clock timing logic from https://stackoverflow.com/a/20381816
@@ -261,17 +268,32 @@ int main(void) {
 								continue;
 							}
 
-							switch (out->payload.at(0)) {	// message type
+							DEBUG_PRINT("Packet " << (int)out->payload[0] << " from " << (int)client->id);
+
+							switch (out->payload[0]) {	// message type
 
 								case MessageType::INPUT: {
 									if (client.get() == stagingState.robber) {
-										frameUp = frameUp || out->payload[1] == 0;
-										frameDown = frameDown || out->payload[1] == 1;
-										frameLeft = frameLeft || out->payload[1] == 2;
-										frameRight = frameRight || out->payload[1] == 3;
+										frameUp = frameUp || out->payload[1] == Control::UP;
+										frameDown = frameDown || out->payload[1] == Control::DOWN;
+										frameLeft = frameLeft || out->payload[1] == Control::LEFT;
+										frameRight = frameRight || out->payload[1] == Control::RIGHT;
 
 										DEBUG_PRINT("up " << frameUp << " down " << frameDown << " left" << frameLeft << " right"
 																			<< frameRight);
+									}
+
+									break;
+								}
+
+
+								case MessageType::GAME_ACTIVATE_POWER: {
+
+									if (client.get() != stagingState.robber && gameState.activePower == Power::NONE) {
+										// TODO: would be nice to capture who used the power
+
+										gameState.activePower = (Power)out->payload[1];
+										gameState.powerTimer = 0.0f;
 									}
 
 									break;
@@ -288,9 +310,13 @@ int main(void) {
 					}
 
 					// game state updates
+					gameState.powerTimer += dt;
+					if (gameState.powerTimer >= stagingState.POWER_LIMIT) {
+						gameState.activePower = Power::NONE;
+					}
+
 					gameState.robber->setVel(frameUp, frameDown, frameLeft, frameRight);
 					gameState.robber->move(dt, nullptr);
-					DEBUG_PRINT("Robber position currently: " << gameState.robber->pos.x << " " << gameState.robber->pos.y);
 
 					// write state updates
 					for (auto& client : clients) {
@@ -302,6 +328,11 @@ int main(void) {
 
 						client->sock.writeQueue.enqueue(
 								Packet::pack(MessageType::GAME_ROBBER_POS, {x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
+
+						if (gameState.activePower != Power::NONE && gameState.powerTimer <= dt) {
+								client->sock.writeQueue.enqueue(
+								Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower}));
+						}
 					}
 
 					break;

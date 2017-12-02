@@ -21,6 +21,8 @@
 
 #include "../shared/queue/readerwriterqueue.h"
 
+#include "../shared/State.hpp"
+
 using moodycamel::BlockingReaderWriterQueue;
 using moodycamel::ReaderWriterQueue;
 
@@ -32,18 +34,6 @@ using moodycamel::ReaderWriterQueue;
  * - StagingState / GameState delta
  */
 
-enum MessageType {
-	STAGING_PLAYER_CONNECT,
-	STAGING_PLAYER_DISCONNECT,
-	STAGING_VOTE_TO_START,
-	STAGING_VETO_START,
-	STAGING_START_GAME,
-	STAGING_ROLE_CHANGE,
-	STAGING_ROLE_CHANGE_REJECTION,
-	STAGING_PLAYER_SYNC,
-	INPUT,
-	GAME_ROBBER_POS
-};
 
 struct Packet {
 	uint8_t header;

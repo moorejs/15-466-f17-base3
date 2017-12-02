@@ -20,14 +20,18 @@
 #include <thread>
 
 #include "Sounds.h"
+#include "Config.hpp"
 
 int main(int argc, char** argv) {
 	// Sound::init(argc, argv);
 
-	// Configuration:
+	std::string title = "Odd One Out";
+
 	struct {
-		std::string title = "Odd One Out";
-		glm::uvec2 size = glm::uvec2(960, 600);
+		int width = 720;
+		int height = 480;
+		int minWidth = 720 / 10;
+		int minHeight = 480 / 10;
 	} config;
 
 	//------------  initialization ------------
@@ -51,10 +55,10 @@ int main(int argc, char** argv) {
 
 	// create window:
 	SDL_Window* window =
-			SDL_CreateWindow(config.title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config.size.x,
-											 config.size.y, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+			SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config.width,
+											 config.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
-	SDL_SetWindowMinimumSize(window, 100, 100);	// prevent exceedingly tiny windows when resizing
+	SDL_SetWindowMinimumSize(window, config.minWidth, config.minHeight);
 
 	if (!window) {
 		std::cerr << "Error creating SDL window: " << SDL_GetError() << std::endl;
@@ -100,20 +104,19 @@ int main(int argc, char** argv) {
 
 	menu->choices.emplace_back("ODD ONE OUT");
 	menu->choices.emplace_back("PLAY LOCAL", [&](MenuMode::Choice&) {
-		staging->reset();
+		staging->reset(true);
+		Mode::set_current(staging);
+	});
+	menu->choices.emplace_back("PLAY ONLINE", [&](MenuMode::Choice&) {
+		staging->reset(false);
 		Mode::set_current(staging);
 	});
 	menu->choices.emplace_back("QUIT", [&](MenuMode::Choice&) { Mode::set_current(nullptr); });
 	menu->selected = 1;
 
-	GameSettings settings;
-	settings.seed = 100;
-	settings.localMultiplayer = true;
-
-	staging->enterGame = [&](Socket* sock, int seed) {
-		settings.seed = seed;
-		game->reset(settings);
+	staging->enterGame = [&](Socket* sock, std::unique_ptr<StagingMode::StagingState> stagingState) {
 		game->sock = sock;
+		game->reset(std::move(stagingState));
 		Mode::set_current(game);
 	};
 	staging->showMenu = [&]() {
@@ -128,13 +131,13 @@ int main(int argc, char** argv) {
 
 	std::cout << "Starting mode: " << startingMode << std::endl;
 	if (startingMode == "staging") {
-		staging->reset();
+		staging->reset(false);
 		Mode::set_current(staging);
 
 		if (position == "robber") {
 			SDL_SetWindowPosition(window, 0, 0);
 		} else {
-			SDL_SetWindowPosition(window, config.size.x, 0);
+			SDL_SetWindowPosition(window, config.width, 0);
 		}
 
 		std::thread setup([&]() {
@@ -151,8 +154,8 @@ int main(int argc, char** argv) {
 
 	} else if (startingMode == "game") {
 		// TODO: this isn't connected to the server
-		game->reset(settings);
-		Mode::set_current(game);
+		//game->reset();
+		//Mode::set_current(game);
 	} else {
 		Mode::set_current(menu);
 	}

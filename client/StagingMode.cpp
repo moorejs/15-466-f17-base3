@@ -1,12 +1,14 @@
 #include "StagingMode.hpp"
 
+#include <glm/gtc/type_ptr.hpp>
+
 #include "GLBuffer.hpp"
 #include "GLProgram.hpp"
 #include "GLVertexArray.hpp"
 #include "Load.hpp"
 #include "MeshBuffer.hpp"
 
-#include <glm/gtc/type_ptr.hpp>
+#include "../shared/State.hpp"
 
 #ifdef DEBUG
 #define DEBUG_PRINT(x) std::cout << __FILE__ << ":" << __LINE__ << ": " << x << std::endl
@@ -74,12 +76,12 @@ StagingMode::StagingMode() {
 	copBtn.label = "COP";
 
 	copBtn.isEnabled = [&]() {
-		return !stagingState.starting && stagingState.player && stagingState.player->role != StagingState::Role::COP;
+		return !state->starting && state->player && state->player->role != StagingState::Role::COP;
 	};
 	copBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::COP}));
 
-		// just accept latency.. stagingState.players[stagingState.playerId].role = StagingState::Role::COP;
+		// just accept latency.. state->players[state->playerId].role = StagingState::Role::COP;
 	};
 
 	robberBtn.color = btnColor;
@@ -87,11 +89,11 @@ StagingMode::StagingMode() {
 	robberBtn.rad = glm::vec2(0.4f, 0.1f);
 	robberBtn.label = "ROBBER";
 
-	robberBtn.isEnabled = [&]() { return !stagingState.starting && stagingState.player && !stagingState.robber; };
+	robberBtn.isEnabled = [&]() { return !state->starting && state->player && !state->robber; };
 	robberBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::ROBBER}));
 
-		// accepting latency for now.. stagingState.players[stagingState.playerId].role = StagingState::Role::ROBBER;
+		// accepting latency for now.. state->players[state->playerId].role = StagingState::Role::ROBBER;
 	};
 
 	startBtn.color = btnColor;
@@ -99,11 +101,11 @@ StagingMode::StagingMode() {
 	startBtn.rad = glm::vec2(0.75f, 0.1f);
 	startBtn.label = "START GAME";
 	startBtn.isEnabled = [&]() {
-		return stagingState.players.size() >= 2 && stagingState.undecided == 0 && stagingState.robber;
+		return state->players.size() >= 2 && state->undecided == 0 && state->robber;
 	};
 	startBtn.onFire = [&]() {
 		Packet* out;
-		if (stagingState.starting) {
+		if (state->starting) {
 			out = Packet::pack(MessageType::STAGING_VETO_START);
 		} else {
 			out = Packet::pack(MessageType::STAGING_VOTE_TO_START);
@@ -115,20 +117,24 @@ StagingMode::StagingMode() {
 	buttons.emplace_back(&robberBtn);
 	buttons.emplace_back(&copBtn);
 	buttons.emplace_back(&startBtn);
+
+	state = std::make_unique<StagingState>();
 }
 
 // Connect to server
-void StagingMode::reset() {
+void StagingMode::reset(bool localMultiplayer) {
 	if (sock) {
 		sock->close();
 		delete sock;
 	}
 
-	stagingState.robber = nullptr;
-	stagingState.player = nullptr;
-	stagingState.undecided = 0;
-	stagingState.players.clear();
-	stagingState.starting = false;
+	state->robber = nullptr;
+	state->player = nullptr;
+	state->undecided = 0;
+	state->players.clear();
+	state->starting = false;
+
+	state->settings.localMultiplayer = localMultiplayer;
 
 	sock = Socket::connect("::1", "3490");
 }
@@ -137,9 +143,8 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 	static glm::vec2 mouse;
 
 	if (event.type == SDL_MOUSEMOTION) {
-		// TODO: fixed screen size
-		mouse.x = (event.motion.x + 0.5f) / 960.0f * 2.0f - 1.0f;
-		mouse.y = (event.motion.y + 0.5f) / 600.0f * -2.0f + 1.0f;
+		mouse.x = (event.motion.x + 0.5f) / window_size.x * 2.0f - 1.0f;
+		mouse.y = (event.motion.y + 0.5f) / window_size.y * -2.0f + 1.0f;
 
 		for (Button* button : buttons) {
 			button->hover = button->contains(mouse);
@@ -171,7 +176,7 @@ void StagingMode::update(float elapsed) {
 	if (!sock) {
 		retryConnection += elapsed;
 		if (retryConnection > retryConnectionLimit) {
-			reset();
+			reset(state->settings.localMultiplayer);
 			retryConnection = 0.0f;
 		};
 		return;
@@ -204,8 +209,8 @@ void StagingMode::update(float elapsed) {
 
 				DEBUG_PRINT("Player " << player->name << " joined the game.");
 
-				stagingState.players[msg->id] = std::move(player);
-				stagingState.undecided += 1;
+				state->players[msg->id] = std::move(player);
+				state->undecided += 1;
 
 				break;
 			}
@@ -218,12 +223,12 @@ void StagingMode::update(float elapsed) {
 				player->id = out->payload[1];
 				player->role = StagingState::Role::NONE;
 				player->name = names[player->id % names.size()];
-				stagingState.player = player.get();
-				stagingState.undecided += 1;
+				state->player = player.get();
+				state->undecided += 1;
 
 				DEBUG_PRINT("Assigned ID " << player->id << " by server");
 
-				stagingState.players[player->id] = std::move(player);
+				state->players[player->id] = std::move(player);
 
 				size_t i = 2;
 				while (i < out->payload.size()) {
@@ -233,15 +238,15 @@ void StagingMode::update(float elapsed) {
 					opponent->name = names[opponent->id % names.size()];
 
 					if (opponent->role == StagingState::Role::ROBBER) {
-						stagingState.robber = opponent.get();
+						state->robber = opponent.get();
 					} else if (opponent->role == StagingState::Role::NONE) {
-						stagingState.undecided += 1;
+						state->undecided += 1;
 					}
 
 					DEBUG_PRINT("Added client " << opponent->id << " with name " << opponent->name << " and role "
 																			<< opponent->role);
 
-					stagingState.players[opponent->id] = std::move(opponent);
+					state->players[opponent->id] = std::move(opponent);
 
 					i += 2;
 				}
@@ -252,21 +257,21 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_ROLE_CHANGE: {
 				// contains player id, new role
 
-				auto player = stagingState.players[out->payload[1]].get();
+				auto player = state->players[out->payload[1]].get();
 
-				if (stagingState.robber == player && out->payload[2] != StagingState::Role::ROBBER) {
-					stagingState.robber = nullptr;
+				if (state->robber == player && out->payload[2] != StagingState::Role::ROBBER) {
+					state->robber = nullptr;
 					DEBUG_PRINT("There is no longer a robber");
 				}
 
 				if (player->role == StagingState::Role::NONE) {
-					stagingState.undecided -= 1;
+					state->undecided -= 1;
 				}
 
 				player->role = static_cast<StagingState::Role>(out->payload[2]);
 
 				if (player->role == StagingState::Role::ROBBER) {
-					stagingState.robber = player;
+					state->robber = player;
 				}
 
 				DEBUG_PRINT("Client" << (int)out->payload[1] << " role set to" << (int)out->payload[2]);
@@ -277,23 +282,23 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_ROLE_CHANGE_REJECTION: {
 				// contains id of current robber
 
-				if (stagingState.player->role != StagingState::Role::NONE) {
-					stagingState.player->role = StagingState::Role::NONE;
-					stagingState.undecided += 1;
+				if (state->player->role != StagingState::Role::NONE) {
+					state->player->role = StagingState::Role::NONE;
+					state->undecided += 1;
 				}
 
 				DEBUG_PRINT("Client" << (int)out->payload[1] << " is currently the robber, you cannot be");
 
 				// this should already be set through other means but whatever
-				stagingState.robber = stagingState.players[out->payload[1]].get();
+				state->robber = state->players[out->payload[1]].get();
 
 				break;
 			}
 
 			case MessageType::STAGING_VOTE_TO_START: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
-				std::cout << "Player " << stagingState.players[msg->id]->name << " voted to start the game." << std::endl;
-				stagingState.starting = true;
+				std::cout << "Player " << state->players[msg->id]->name << " voted to start the game." << std::endl;
+				state->starting = true;
 
 				startBtn.label = "VETO START";
 
@@ -302,8 +307,8 @@ void StagingMode::update(float elapsed) {
 
 			case MessageType::STAGING_VETO_START: {
 				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
-				std::cout << "Player " << stagingState.players[msg->id]->name << " vetoed the game startBtn." << std::endl;
-				stagingState.starting = false;
+				std::cout << "Player " << state->players[msg->id]->name << " vetoed the game startBtn." << std::endl;
+				state->starting = false;
 
 				startBtn.label = "START GAME";
 
@@ -313,7 +318,8 @@ void StagingMode::update(float elapsed) {
 			case MessageType::STAGING_START_GAME: {
 				// contains seed
 
-				enterGame(sock, out->payload.at(1));	// TODO: make sock unique_ptr and move it here
+				state->settings.seed = out->payload[1];
+				enterGame(sock, std::move(state));	// TODO: make sock unique_ptr and move it here
 
 				break;
 			}
@@ -411,12 +417,12 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 	};
 
 	// TODO: message queue with timeouts, relatively simple?
-	if (!sock || !stagingState.player) {
+	if (!sock || !state->player) {
 		draw_word("NOT CONNECTED", 0.0f, -0.92f);
 	} else {
 		draw_word("CONNECTED", 0.0f, -0.92f);
 
-		switch (stagingState.player->role) {
+		switch (state->player->role) {
 			case StagingState::Role::ROBBER: {
 				draw_word("ROBBER SELECTED", 0.0f, 0.88f);
 				break;

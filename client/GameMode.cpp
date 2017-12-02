@@ -16,6 +16,7 @@
 
 #include "../shared/Collisions.h"
 #include "../shared/person.h"
+#include "../shared/State.hpp"
 #include "Sounds.h"
 
 bool isSnapshotOn = false;
@@ -23,11 +24,6 @@ bool isTestimonyShowing = false;
 float randX;
 float randY;
 std::string testimony_text = "";
-SDL_TimerID snapshot_timer;
-SDL_TimerID reset_snapshot_timer;
-SDL_TimerID testimony_timer;
-SDL_TimerID reset_testimony_timer;
-SDL_TimerID reset_scale_timer;
 time_t game_start_time;
 float game_duration = 120;
 
@@ -61,63 +57,6 @@ static glm::vec2 mouse = glm::vec2(0.0f, 0.0f);
 std::vector<std::string> random_testimonies = {
 		"IN A RED SHIRT", "WITH BROWN HAIR", "WITH BLACK HAIR", "WITH BLUE SHOES", "IN A GRAY SUIT", "WITH A BLACK WATCH",
 		"ON THE ROAD",		"WITH A HAT",			 "NEAR THE STORE",	"WITH BLOND HAIR", "WITH GLASSES"};
-
-Uint32 resetSnapShot(Uint32 interval, void* param) {
-	isSnapshotOn = false;
-
-	if (!gameEnded) {
-		Person::unfreezeAll();
-		player.isMoving = true;
-	}
-
-	SDL_RemoveTimer(reset_snapshot_timer);
-
-	return interval;
-}
-
-Uint32 enableSnapShot(Uint32 interval = 0, void* param = nullptr) {
-	if (!gameEnded) {
-		randX = (rand() % 10 - 10) / 10.0f;
-		randY = (rand() % 10) / 10.0f;
-
-		isSnapshotOn = true;
-
-		Person::freezeAll();
-
-		player.isMoving = false;
-
-		reset_snapshot_timer = SDL_AddTimer(snapshot_reset_delay, resetSnapShot, NULL);
-	}
-	return interval;
-}
-
-Uint32 resetScales(Uint32 interval, void* param) {
-	for (auto const& person : Person::people) {
-		person->scale = glm::vec3(0.012f, 0.012f, 0.012f);
-	}
-
-	SDL_RemoveTimer(reset_scale_timer);
-
-	return interval;
-}
-
-Uint32 resetTestimony(Uint32 interval, void* param) {
-	isTestimonyShowing = false;
-
-	SDL_RemoveTimer(reset_testimony_timer);
-
-	return interval;
-}
-
-Uint32 showTestimony(Uint32 interval = 0, void* param = nullptr) {
-	testimony_text = random_testimonies[rand() % random_testimonies.size()];
-
-	isTestimonyShowing = true;
-
-	reset_testimony_timer = SDL_AddTimer(testimony_reset_delay, resetTestimony, NULL);
-
-	return interval;
-}
 
 void spawnCop() {
 	cop.scale = 0.018f * glm::vec3(1, 1, 1);
@@ -264,15 +203,17 @@ void snapShot(float x, float y, Scene* scene) {
 	}
 }
 
+template <class callable, class... arguments>
+void later(int after, callable&& f, arguments&&... args);
+
+void activateSnapshot();
+void activateTestimony();
+
 GameMode::GameMode() {
 	sock = nullptr;
 
 	camera.elevation = 1.00833f;
 	camera.azimuth = 3.15f;
-
-	// snapshot_timer = SDL_AddTimer(snapshot_delay, enableSnapShot, NULL);
-
-	// testimony_timer = SDL_AddTimer(testimony_delay, showTestimony, NULL);
 
 	time(&game_start_time);
 
@@ -314,32 +255,32 @@ GameMode::GameMode() {
 	snapshotBtn.pos = glm::vec2(-0.5f + 0.025f, -0.92f);
 	snapshotBtn.rad = glm::vec2(0.45f, 0.06f);
 	snapshotBtn.label = "SNAPSHOT";
-	snapshotBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > settings.POWER_TIMEOUT; };
+	snapshotBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
 	snapshotBtn.onFire = [&]() {
-		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
-		enableSnapShot();
-		state.powerTimer = 0;
+		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::SNAPSHOT}));
+		// enableSnapShot();
+		//state.powerTimer = 0;
 	};
 	snapshotBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
 
 	anonymousTipBtn.pos = glm::vec2(0.5f - 0.025f, -0.92f);
 	anonymousTipBtn.rad = glm::vec2(0.45f, 0.06f);
 	anonymousTipBtn.label = "ANON TIP";
-	anonymousTipBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > settings.POWER_TIMEOUT; };
+	anonymousTipBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
 	anonymousTipBtn.onFire = [&]() {
-		// sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_SELECT_POWER, {0}));
-		showTestimony();
-		state.powerTimer = 0;
+		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP}));
+		//showTestimony();
+		//state.powerTimer = 0;
 	};
 	anonymousTipBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
 }
 
 // https://www.bensound.com/royalty-free-music/track/summer
 Sound bgmusic;
-void GameMode::reset(const GameSettings& gameSettings) {
-	settings = gameSettings;
+void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
+	staging = std::move(stagingState);
 
-	twister.seed(settings.seed);
+	twister.seed(staging->settings.seed);
 	// bgmusic = Sound("../sounds/bensound-summer.wav", true);
 	// bgmusic.play();
 	int numPlayers = 250;
@@ -350,29 +291,21 @@ void GameMode::reset(const GameSettings& gameSettings) {
 		if (i == numPlayers) {
 			player = Person();
 			cur = &player;
+
+			if (!staging->settings.localMultiplayer && staging->player == staging->robber) {
+				player.scale *= 1.5f;
+			}
+
 		} else if (i == numPlayers - 1) {
 			cop = Person();
 			cur = &cop;
-		} else
+			cur->scale *= 0.0f;
+		} else {
 			cur = makeAI();
-		cur->rot = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
-		cur->scale = 0.012f * glm::vec3(1, 1, 1);
-
-		/*
-				cur->meshObject.program = game_program->program;
-				cur->meshObject.program_mvp = game_program_mvp;
-				cur->meshObject.program_mv = game_program_mv;
-				cur->meshObject.program_itmv = game_program_itmv;
-				cur->meshObject.vao = binding->array;
-				cur->meshObject.start = mesh.start;
-				cur->meshObject.count = mesh.count;
-				cur->meshObject.set_uniforms = [](Scene::Object const&) { glUniform1f(game_program_roughness, 1.0f); };*/
-		cur->placeInScene((i >= numPlayers - 1) ? NULL : &collisionFramework);
-
-		// cop
-		if (i == numPlayers - 1) {
-			cur->scale = 0.0f * glm::vec3(1.0f);
 		}
+
+		cur->rot = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
+		cur->placeInScene((i >= numPlayers - 1) ? NULL : &collisionFramework);
 	}
 }
 
@@ -433,19 +366,19 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 		switch (e.key.keysym.scancode) {
 			case up:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {0}));
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::UP}));
 				break;
 
 			case down:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {1}));
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::DOWN}));
 				break;
 
 			case left:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {2}));
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::LEFT}));
 				break;
 
 			case right:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {3}));
+				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::RIGHT}));
 				break;
 
 			default:
@@ -474,7 +407,12 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 				if (minDistance < 0.4f) {
 					closestPerson->scale = glm::vec3(0.02f, 0.02f, 0.02f);
-					reset_scale_timer = SDL_AddTimer(2000, resetScales, NULL);
+
+					later(2000, []() {
+						for (auto const& person : Person::people) {
+							person->scale = Person::BASE_SCALE;
+						}
+					});
 				}
 
 				break;
@@ -508,8 +446,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	// temporary mouse movement for camera
 	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
-		mouse.x = (e.motion.x + 0.5f) / float(2 * 960) * 2.0f - 1.0f;
-		mouse.y = (e.motion.y + 0.5f) / float(2 * 600) * -2.0f + 1.0f;
+		mouse.x = (e.motion.x + 0.5f) / float(window_size.x) * 2.0f - 1.0f;
+		mouse.y = (e.motion.y + 0.5f) / float(window_size.y) * -2.0f + 1.0f;
 		if (e.motion.state & SDL_BUTTON(SDL_BUTTON_LEFT)) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
@@ -561,7 +499,7 @@ void GameMode::update(float elapsed) {
 
 	static const uint8_t* keys = SDL_GetKeyboardState(NULL);
 
-	if (settings.clientSidePrediction) {
+	if (staging->settings.clientSidePrediction) {
 		if (gameEnded)
 			cop.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
 		else
@@ -597,7 +535,28 @@ void GameMode::update(float elapsed) {
 				// TODO: update rotation.. might just go with a local value, also move the player locally and then snap to
 				// correct value
 
-				std::cout << "New robber position: " << player.pos.x << " " << player.pos.y << std::endl;
+				break;
+			}
+
+			case MessageType::GAME_ACTIVATE_POWER: {
+				std::cout << "Activing power " << (int)out->payload[1] << std::endl;
+
+				switch (out->payload[1]) {
+					case Power::SNAPSHOT: {
+						activateSnapshot();
+						break;
+					}
+
+					case Power::ANON_TIP: {
+						activateTestimony();
+						break;
+					}
+
+					default: {}
+				}
+
+				// TODO: add some leniency in timing because server timing may not match up exactly
+				state.powerTimer = 0.0f;
 
 				break;
 			}
@@ -843,8 +802,20 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	}
 
 	draw_word(timeString, 0.7, 0.8, 0.8, glm::vec3(0.4, 0.4, 0.4));
-	draw_button(snapshotBtn);
-	draw_button(anonymousTipBtn);
+
+	if (!staging->settings.localMultiplayer) {
+		if (staging->player == staging->robber) {
+			// robber only views
+
+		} else { 
+			// cop only views
+			draw_button(snapshotBtn);
+			draw_button(anonymousTipBtn);
+		}
+	} else {
+		draw_button(snapshotBtn);
+		draw_button(anonymousTipBtn);
+	}
 
 	if (gameResultPosted) {
 		draw_word(endGameTxt, 0, 0);
@@ -855,4 +826,43 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	scene.camera.near = 0.01f;
 
 	glDisable(GL_STENCIL_TEST);
+}
+
+void activateSnapshot() {
+	if (!gameEnded) {
+		Person::freezeAll();
+		player.isMoving = false;
+		isSnapshotOn = true;
+
+		later(snapshot_reset_delay, []() {
+			isSnapshotOn = false;
+
+			if (!gameEnded) {
+				Person::unfreezeAll();
+				player.isMoving = true;
+			}
+		});
+	}
+}
+
+void activateTestimony() {
+	testimony_text = random_testimonies[rand() % random_testimonies.size()];
+
+	isTestimonyShowing = true;
+
+	later(testimony_reset_delay, []() {
+		isTestimonyShowing = false;
+	});
+}
+
+// from https://stackoverflow.com/a/14665230
+template <class callable, class... arguments>
+void later(int after, callable&& f, arguments&&... args)
+{
+		std::function<typename std::result_of<callable(arguments...)>::type()> task(std::bind(std::forward<callable>(f), std::forward<arguments>(args)...));
+
+		std::thread([after, task]() {
+			std::this_thread::sleep_for(std::chrono::milliseconds(after));
+			task();
+		}).detach();
 }

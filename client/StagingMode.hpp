@@ -28,7 +28,7 @@ struct StagingMode : public Mode {
 	virtual void draw(glm::uvec2 const& drawable_size) override;
 
 	/* Closes existing connection to the server, reset state, and connects to server */
-	void reset();
+	void reset(bool localMultiplayer);
 
 	Socket* sock;
 
@@ -55,13 +55,16 @@ struct StagingMode : public Mode {
 		std::unordered_map<int, std::unique_ptr<Client>> players;
 		bool starting;
 
-	} stagingState;
+		GameSettings settings;
+	};
+	std::unique_ptr<StagingState> state;
+
 
 	Button robberBtn;
 	Button copBtn;
 	Button startBtn;
 	std::vector<Button*> buttons;
 
-	std::function<void(Socket*, int)> enterGame;
+	std::function<void(Socket*, std::unique_ptr<StagingState>)> enterGame;
 	std::function<void()> showMenu;
 };

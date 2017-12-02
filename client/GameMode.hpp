@@ -10,6 +10,7 @@
 #include "ui/Button.hpp"
 
 #include <functional>
+#include <memory>
 #include <random>
 
 struct GameMode : public Mode {
@@ -20,7 +21,7 @@ struct GameMode : public Mode {
 	virtual void update(float elapsed) override;
 	virtual void draw(glm::uvec2 const& drawable_size) override;
 
-	void reset(const GameSettings& settings);	// reset the game state
+	void reset(std::unique_ptr<StagingMode::StagingState> stagingState);
 	void endGame();
 
 	Scene::Object* addObject(std::string const& name,
@@ -37,7 +38,7 @@ struct GameMode : public Mode {
 
 	bool isRobber;
 
-	GameSettings settings;
+	std::unique_ptr<StagingMode::StagingState> staging;
 	struct GameState {
 		float overallTimer = 0.0f;
 		float powerTimer = 10.0f;

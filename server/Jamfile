@@ -15,12 +15,12 @@ C++FLAGS =
 		-I$(KIT_LIBS)/glm/include
 		;
 
+LINKFLAGS = -std=c++14 -g -Wall -Werror ;
+
 if $(DEBUG) = true {
 	C++FLAGS = $(C++FLAGS) -DDEBUG ;
 	LINKFLAGS = $(LINKFLAGS) -DDEBUG ;
 }
-
-LINKFLAGS = -std=c++14 -g -Wall -Werror ;
 
 LOCAL =
 	;
