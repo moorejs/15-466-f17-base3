@@ -24,6 +24,10 @@ struct GameMode : public Mode {
 	void reset(std::unique_ptr<StagingMode::StagingState> stagingState);
 	void endGame();
 
+	void activateSnapshot();
+	void activateTestimony();
+	void activateRoadblock(int roadblock);
+
 	Scene::Object* addObject(std::string const& name,
 													 glm::vec3 const& position,
 													 glm::quat const& rotation,
@@ -69,6 +73,8 @@ struct GameMode : public Mode {
 
 	Button snapshotBtn;
 	Button anonymousTipBtn;
+	Button roadblockBtn;
+	std::vector<Button*> buttons;
 
 	Socket* sock;
 

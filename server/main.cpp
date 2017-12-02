@@ -9,8 +9,8 @@
 
 #include "../shared/queue/readerwriterqueue.h"
 
-#include "../shared/person.h"
 #include "../shared/State.hpp"
+#include "../shared/person.h"
 
 // TODO: will have to do collision
 
@@ -286,9 +286,7 @@ int main(void) {
 									break;
 								}
 
-
 								case MessageType::GAME_ACTIVATE_POWER: {
-
 									if (client.get() != stagingState.robber && gameState.activePower == Power::NONE) {
 										// TODO: would be nice to capture who used the power
 
@@ -330,8 +328,7 @@ int main(void) {
 								Packet::pack(MessageType::GAME_ROBBER_POS, {x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
 
 						if (gameState.activePower != Power::NONE && gameState.powerTimer <= dt) {
-								client->sock.writeQueue.enqueue(
-								Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower}));
+							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower}));
 						}
 					}
 

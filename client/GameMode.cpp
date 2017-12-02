@@ -15,8 +15,8 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "../shared/Collisions.h"
-#include "../shared/person.h"
 #include "../shared/State.hpp"
+#include "../shared/person.h"
 #include "Sounds.h"
 
 bool isSnapshotOn = false;
@@ -206,9 +206,6 @@ void snapShot(float x, float y, Scene* scene) {
 template <class callable, class... arguments>
 void later(int after, callable&& f, arguments&&... args);
 
-void activateSnapshot();
-void activateTestimony();
-
 GameMode::GameMode() {
 	sock = nullptr;
 
@@ -252,27 +249,38 @@ GameMode::GameMode() {
 	collisionFramework.addBounds(BBox2D(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
 	collisionFramework.addBounds(BBox2D(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
 
-	snapshotBtn.pos = glm::vec2(-0.5f + 0.025f, -0.92f);
-	snapshotBtn.rad = glm::vec2(0.45f, 0.06f);
+	snapshotBtn.pos = {-2.0f / 3.0f, -0.92f};
+	snapshotBtn.rad = {0.3f, 0.06f};
 	snapshotBtn.label = "SNAPSHOT";
 	snapshotBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
 	snapshotBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::SNAPSHOT}));
-		// enableSnapShot();
-		//state.powerTimer = 0;
 	};
 	snapshotBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
 
-	anonymousTipBtn.pos = glm::vec2(0.5f - 0.025f, -0.92f);
-	anonymousTipBtn.rad = glm::vec2(0.45f, 0.06f);
+	anonymousTipBtn.pos = {0.0f, -0.92f};
+	anonymousTipBtn.rad = {0.3f, 0.06f};
 	anonymousTipBtn.label = "ANON TIP";
-	anonymousTipBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
+	anonymousTipBtn.isEnabled = [&]() -> bool {
+		return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT;
+	};
 	anonymousTipBtn.onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP}));
-		//showTestimony();
-		//state.powerTimer = 0;
 	};
 	anonymousTipBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
+
+	roadblockBtn.pos = {2.0f / 3.0f, -0.92f};
+	roadblockBtn.rad = {0.3f, 0.06f};
+	roadblockBtn.label = "ROAD BLOCK";
+	roadblockBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
+	roadblockBtn.onFire = [&]() {
+		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK}));
+	};
+	roadblockBtn.color = {0.1f, 0.6f, 0.1f};
+
+	buttons.emplace_back(&snapshotBtn);
+	buttons.emplace_back(&anonymousTipBtn);
+	buttons.emplace_back(&roadblockBtn);
 }
 
 // https://www.bensound.com/royalty-free-music/track/summer
@@ -452,8 +460,10 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			camera.elevation += -2.0f * (mouse.y - old_mouse.y);
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
-		snapshotBtn.hover = snapshotBtn.contains(mouse);
-		anonymousTipBtn.hover = anonymousTipBtn.contains(mouse);
+
+		for (Button* btn : buttons) {
+			btn->hover = btn->contains(mouse);
+		}
 	} else if (e.type == SDL_MOUSEBUTTONDOWN) {
 		Ray r = getCameraRay(mouse);
 		for (auto const& person : Person::people) {
@@ -465,12 +475,12 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			}
 		}
 
-		if (snapshotBtn.hover && snapshotBtn.isEnabled()) {
-			snapshotBtn.onFire();
+		for (Button* btn : buttons) {
+			if (btn->hover && btn->isEnabled()) {
+				btn->onFire();
+			}
 		}
-		if (anonymousTipBtn.hover && anonymousTipBtn.isEnabled()) {
-			anonymousTipBtn.onFire();
-		}
+
 		////
 		//		glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
 		//		glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
@@ -549,6 +559,11 @@ void GameMode::update(float elapsed) {
 
 					case Power::ANON_TIP: {
 						activateTestimony();
+						break;
+					}
+
+					case Power::ROADBLOCK: {
+						activateRoadblock(0);	// out->payload[2]);
 						break;
 					}
 
@@ -807,12 +822,14 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		if (staging->player == staging->robber) {
 			// robber only views
 
-		} else { 
+		} else {
 			// cop only views
+			draw_button(roadblockBtn);
 			draw_button(snapshotBtn);
 			draw_button(anonymousTipBtn);
 		}
 	} else {
+		draw_button(roadblockBtn);
 		draw_button(snapshotBtn);
 		draw_button(anonymousTipBtn);
 	}
@@ -828,7 +845,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glDisable(GL_STENCIL_TEST);
 }
 
-void activateSnapshot() {
+void GameMode::activateSnapshot() {
 	if (!gameEnded) {
 		Person::freezeAll();
 		player.isMoving = false;
@@ -845,24 +862,29 @@ void activateSnapshot() {
 	}
 }
 
-void activateTestimony() {
-	testimony_text = random_testimonies[rand() % random_testimonies.size()];
+void GameMode::activateTestimony() {
+	testimony_text = random_testimonies[(int)rand() % random_testimonies.size()];
 
 	isTestimonyShowing = true;
 
-	later(testimony_reset_delay, []() {
-		isTestimonyShowing = false;
-	});
+	later(testimony_reset_delay, []() { isTestimonyShowing = false; });
+}
+
+void GameMode::activateRoadblock(int roadblock) {
+	collisionFramework.addBounds(Data::roadblocks[roadblock]);
+
+	// TODO: track remaining, if none remaining disable button
 }
 
 // from https://stackoverflow.com/a/14665230
 template <class callable, class... arguments>
-void later(int after, callable&& f, arguments&&... args)
-{
-		std::function<typename std::result_of<callable(arguments...)>::type()> task(std::bind(std::forward<callable>(f), std::forward<arguments>(args)...));
+void later(int after, callable&& f, arguments&&... args) {
+	std::function<typename std::result_of<callable(arguments...)>::type()> task(
+			std::bind(std::forward<callable>(f), std::forward<arguments>(args)...));
 
-		std::thread([after, task]() {
-			std::this_thread::sleep_for(std::chrono::milliseconds(after));
-			task();
-		}).detach();
+	std::thread([after, task]() {
+		std::this_thread::sleep_for(std::chrono::milliseconds(after));
+		task();
+	})
+			.detach();
 }

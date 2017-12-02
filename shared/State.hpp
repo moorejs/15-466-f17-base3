@@ -1,13 +1,25 @@
 #pragma once
 
+#include <array>
+
+#include "Collisions.h"
+
+namespace Data {
+static std::array<BBox2D, 1> roadblocks = {{BBox2D({0.0f, 0.0f}, {1.0f, 1.0f})}};
+};
+
 enum Power : uint8_t {
-  NONE,
-  SNAPSHOT,
-  ANON_TIP,
+	NONE,
+	SNAPSHOT,
+	ANON_TIP,
+	ROADBLOCK,
 };
 
 enum Control : uint8_t {
-  UP, DOWN, LEFT, RIGHT,
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT,
 };
 
 enum MessageType : uint8_t {
