@@ -19,9 +19,9 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "../shared/queue/readerwriterqueue.h"
+#include "queue/readerwriterqueue.h"
 
-#include "../shared/State.hpp"
+#include "State.hpp"
 
 using moodycamel::BlockingReaderWriterQueue;
 using moodycamel::ReaderWriterQueue;
@@ -33,7 +33,6 @@ using moodycamel::ReaderWriterQueue;
  * - allow for way to stack messages and write all at once
  * - StagingState / GameState delta
  */
-
 
 struct Packet {
 	uint8_t header;

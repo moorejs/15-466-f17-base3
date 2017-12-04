@@ -26,9 +26,10 @@ LOCAL =
 	;
 
 NAMES =
-  server_main
+	server_main
 	person
 	Collisions
+	Server
 	;
 
 LOCATE_TARGET = ../objs ;
@@ -40,6 +41,7 @@ Object server_main.o : main.cpp ;
 # couldn't get shared to work in a nice way
 Object person.o : ../shared/person.cpp ;
 Object Collisions.o : ../shared/Collisions.cpp ;
+Object Server.o : ../shared/Server.cpp ;
 
 LOCATE_TARGET = ../dist ;
 MainFromObjects server : $(NAMES:S=$(SUFOBJ)) ;
