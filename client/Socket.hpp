@@ -24,30 +24,6 @@
 using moodycamel::BlockingReaderWriterQueue;
 using moodycamel::ReaderWriterQueue;
 
-struct Packet {
-	uint8_t header;
-	std::vector<uint8_t> payload;
-
-	static Packet* pack(MessageType type, std::initializer_list<uint8_t> extra = {}) {
-		Packet* packet = new Packet();
-
-		packet->payload.emplace_back(type);
-		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
-
-		packet->header = packet->payload.size();
-
-		return packet;
-	}
-};
-
-struct SimpleMessage {
-	uint8_t id;
-
-	static const SimpleMessage* unpack(const std::vector<uint8_t>& payload) {
-		return reinterpret_cast<const SimpleMessage*>(payload.data() + 1);
-	}
-};
-
 class Socket {
 	int fd;
 	std::atomic<bool> connected;

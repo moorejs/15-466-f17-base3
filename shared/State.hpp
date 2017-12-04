@@ -35,3 +35,38 @@ enum MessageType : uint8_t {
 	GAME_ROBBER_POS,
 	GAME_ACTIVATE_POWER,
 };
+
+struct Packet {
+	uint8_t header;
+	std::vector<uint8_t> payload;
+
+	static Packet* pack(MessageType type, std::initializer_list<uint8_t> extra = {}) {
+		Packet* packet = new Packet();
+
+		packet->payload.emplace_back(type);
+		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
+
+		packet->header = packet->payload.size();
+
+		return packet;
+	}
+
+	static Packet* pack(MessageType type, std::vector<uint8_t> extra) {
+		Packet* packet = new Packet();
+
+		packet->payload.emplace_back(type);
+		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
+
+		packet->header = packet->payload.size();
+
+		return packet;
+	}
+};
+
+struct SimpleMessage {
+	uint8_t id;
+
+	static const SimpleMessage* unpack(Packet* packet) {
+		return reinterpret_cast<const SimpleMessage*>(packet->payload.data() + 1);
+	}
+};

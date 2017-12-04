@@ -21,8 +21,11 @@ function build_server {
 
 if build_client && [ $success -eq 0 ] && build_server && [ $success -eq 0 ] ; then
   printf "\nBuilt successfully\n\n"
-
-  if [ -z ${1+x} ] ; then # if $1 is set
+  
+  if [ "$1" == "menu" ] ; then
+    cd dist
+    ./client menu
+  elif [ -z ${1+x} ] ; then # if $1 is not set
     printf "Starting two clients (one cop, one robber), and a server...\n\n"
 
     cd dist

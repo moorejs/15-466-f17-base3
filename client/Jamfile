@@ -96,6 +96,7 @@ NAMES =
 	StagingMode
 	Draw
 	#Sounds
+	Server
 	;
 
 if $(OS) = NT {
@@ -110,6 +111,7 @@ Object client_main.o : main.cpp ;
 
 # couldn't get shared to work in a nice way
 Object person.o : ../shared/person.cpp ;
+Object Server.o : ../shared/Server.cpp ;
 Object Collisions.o : ../shared/Collisions.cpp ;
 
 LOCATE_TARGET = ../dist ; #put executable in 'dist' directory

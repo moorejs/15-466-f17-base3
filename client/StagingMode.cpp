@@ -100,9 +100,7 @@ StagingMode::StagingMode() {
 	startBtn.pos = glm::vec2(0.0f, -0.35f);
 	startBtn.rad = glm::vec2(0.75f, 0.1f);
 	startBtn.label = "START GAME";
-	startBtn.isEnabled = [&]() {
-		return state->players.size() >= 2 && state->undecided == 0 && state->robber;
-	};
+	startBtn.isEnabled = [&]() { return state->players.size() >= 2 && state->undecided == 0 && state->robber; };
 	startBtn.onFire = [&]() {
 		Packet* out;
 		if (state->starting) {
@@ -200,7 +198,7 @@ void StagingMode::update(float elapsed) {
 		switch (out->payload.at(0)) {	// message type
 
 			case MessageType::STAGING_PLAYER_CONNECT: {
-				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
+				const SimpleMessage* msg = SimpleMessage::unpack(out);
 
 				auto player = std::make_unique<StagingState::Client>();
 				player->id = msg->id;
@@ -296,7 +294,7 @@ void StagingMode::update(float elapsed) {
 			}
 
 			case MessageType::STAGING_VOTE_TO_START: {
-				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
+				const SimpleMessage* msg = SimpleMessage::unpack(out);
 				std::cout << "Player " << state->players[msg->id]->name << " voted to start the game." << std::endl;
 				state->starting = true;
 
@@ -306,7 +304,7 @@ void StagingMode::update(float elapsed) {
 			}
 
 			case MessageType::STAGING_VETO_START: {
-				const SimpleMessage* msg = SimpleMessage::unpack(out->payload);
+				const SimpleMessage* msg = SimpleMessage::unpack(out);
 				std::cout << "Player " << state->players[msg->id]->name << " vetoed the game startBtn." << std::endl;
 				state->starting = false;
 

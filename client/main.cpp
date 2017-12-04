@@ -19,8 +19,9 @@
 #include <stdexcept>
 #include <thread>
 
-#include "Sounds.h"
+#include "../shared/Server.hpp"
 #include "Config.hpp"
+#include "Sounds.h"
 
 int main(int argc, char** argv) {
 	// Sound::init(argc, argv);
@@ -55,8 +56,8 @@ int main(int argc, char** argv) {
 
 	// create window:
 	SDL_Window* window =
-			SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config.width,
-											 config.height, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+			SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, config.width, config.height,
+											 SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
 
 	SDL_SetWindowMinimumSize(window, config.minWidth, config.minHeight);
 
@@ -104,6 +105,11 @@ int main(int argc, char** argv) {
 
 	menu->choices.emplace_back("ODD ONE OUT");
 	menu->choices.emplace_back("PLAY LOCAL", [&](MenuMode::Choice&) {
+		std::thread([]() { Server server; }).detach();
+
+		// wait for server to start accepting connections
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
 		staging->reset(true);
 		Mode::set_current(staging);
 	});
@@ -154,8 +160,8 @@ int main(int argc, char** argv) {
 
 	} else if (startingMode == "game") {
 		// TODO: this isn't connected to the server
-		//game->reset();
-		//Mode::set_current(game);
+		// game->reset();
+		// Mode::set_current(game);
 	} else {
 		Mode::set_current(menu);
 	}

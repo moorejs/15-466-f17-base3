@@ -14,11 +14,11 @@ using moodycamel::ReaderWriterQueue;
 Server::Server() {
 	DEBUG_PRINT("IN DEBUG MODE");
 
-	int sockfd = Socket::initServer("3490");
+	int sockfd = ClientSocket::initServer("3490");
 
 	struct Client {
 		uint8_t id;
-		Socket sock;
+		ClientSocket sock;
 
 		enum Role {	// TODO: reuse code from client
 			NONE,
@@ -35,7 +35,7 @@ Server::Server() {
 		int accepted = 0;
 
 		while (accepted < 3) {
-			int fd = Socket::accept(sockfd);
+			int fd = ClientSocket::accept(sockfd);
 			if (fd == -1) {
 				continue;
 			}

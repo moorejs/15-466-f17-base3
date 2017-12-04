@@ -34,57 +34,12 @@ using moodycamel::ReaderWriterQueue;
  * - StagingState / GameState delta
  */
 
-struct Packet {
-	uint8_t header;
-	std::vector<uint8_t> payload;
-
-	static Packet* pack(MessageType type, std::initializer_list<uint8_t> extra = {}) {
-		Packet* packet = new Packet();
-
-		packet->payload.emplace_back(type);
-		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
-
-		packet->header = packet->payload.size();
-
-		return packet;
-	}
-
-	static Packet* pack(MessageType type, std::vector<uint8_t> extra) {
-		Packet* packet = new Packet();
-
-		packet->payload.emplace_back(type);
-		packet->payload.insert(packet->payload.end(), extra.begin(), extra.end());
-
-		packet->header = packet->payload.size();
-
-		return packet;
-	}
-};
-
-struct SimpleMessage {
-	uint8_t id;
-
-	static const SimpleMessage* unpack(Packet* packet) {
-		return reinterpret_cast<const SimpleMessage*>(packet->payload.data() + 1);
-	}
-};
-
-/*
-struct RoleChangeMessage {
-	bool robberRequest : 8
-
-	static const SimpleMessage* unpack(Packet* packet) {
-		return reinterpret_cast<const SimpleMessage*>(packet->payload.data() + 1);
-	}
-};
-*/
-
-class Socket {
+class ClientSocket {
 	int fd;
 	std::atomic<bool> connected;
 
  public:
-	Socket(int fd)
+	ClientSocket(int fd)
 			: fd(fd),
 				connected(true),
 				readThread([&]() {
@@ -122,10 +77,10 @@ class Socket {
 	}
 
 	// no move or copying
-	Socket(const Socket&) = delete;
-	Socket& operator=(const Socket&) = delete;
-	Socket(Socket&& other) = delete;
-	Socket& operator=(Socket&&) = delete;
+	ClientSocket(const ClientSocket&) = delete;
+	ClientSocket& operator=(const ClientSocket&) = delete;
+	ClientSocket(ClientSocket&& other) = delete;
+	ClientSocket& operator=(ClientSocket&&) = delete;
 
 	void close() { ::close(fd); }
 
