@@ -52,6 +52,7 @@ Load<GLVertexArray> menuBinding(LoadTagDefault, []() {
 });
 
 //----------------------
+MenuMode::MenuMode() {}
 
 bool MenuMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 	if (e.type == SDL_KEYDOWN) {
@@ -59,29 +60,13 @@ bool MenuMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			Mode::set_current(nullptr);
 			return true;
 		} else if (e.key.keysym.sym == SDLK_UP) {
-			// find previous selectable thing that isn't selected:
-			uint32_t old = selected;
-			selected -= 1;
-			while (selected < choices.size() && !choices[selected].on_select)
-				--selected;
-			if (selected >= choices.size())
-				selected = old;
-
+			menuButtons.onPrev();
 			return true;
 		} else if (e.key.keysym.sym == SDLK_DOWN) {
-			// find next selectable thing that isn't selected:
-			uint32_t old = selected;
-			selected += 1;
-			while (selected < choices.size() && !choices[selected].on_select)
-				++selected;
-			if (selected >= choices.size())
-				selected = old;
-
+			menuButtons.onNext();
 			return true;
 		} else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_SPACE) {
-			if (selected < choices.size() && choices[selected].on_select) {
-				choices[selected].on_select(choices[selected]);
-			}
+			menuButtons.onKey();
 			return true;
 		}
 	}
@@ -104,6 +89,8 @@ void MenuMode::draw(glm::uvec2 const& drawable_size) {
 	for (auto const& choice : choices) {
 		total_height += choice.height + 2.0f * choice.padding;
 	}
+
+	menuButtons.draw();
 
 	glUseProgram(menuProgram->program);
 	glBindVertexArray(menuBinding->array);

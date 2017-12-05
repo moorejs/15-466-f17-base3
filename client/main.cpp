@@ -102,9 +102,20 @@ int main(int argc, char** argv) {
 	std::shared_ptr<StagingMode> staging = std::make_shared<StagingMode>();
 	std::shared_ptr<MenuMode> menu = std::make_shared<MenuMode>();
 
-	ButtonGroup menuButtons;
 	Button* btn;
-	btn = menuButtons.add("first", {0.0f, 0.0f, 0.0f});
+	btn = menu->menuButtons.add("playLocal", {0.0f, 1.0f, 0.0f});
+	btn->isEnabled = []() { return true; };
+	btn->onFire = [&]() {
+		std::thread([]() { Server server; }).detach();
+
+		// wait for server to start accepting connections
+		std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+		staging->reset(true);
+		Mode::set_current(staging);
+	};
+
+	menu->menuButtons.layoutVertical(0.092f, 1.0f);
 
 	menu->choices.emplace_back("ODD ONE OUT");
 	menu->choices.emplace_back("PLAY LOCAL", [&](MenuMode::Choice&) {
