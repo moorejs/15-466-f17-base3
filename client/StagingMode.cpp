@@ -20,6 +20,8 @@
 
 Load<MeshBuffer> staging_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
 
+extern Load<MeshBuffer> menu_meshes;
+
 // Attrib locations in staging_program:
 GLint staging_program_Position = -1;
 // Uniform locations in staging_program:
@@ -406,7 +408,7 @@ void StagingMode::draw(glm::uvec2 const& drawable_size) {
 				glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
 				glUniform3f(staging_program_color, 1.0f, 1.0f, 1.0f);
 
-				MeshBuffer::Mesh const& mesh = staging_meshes->lookup(word.substr(i, 1));
+				MeshBuffer::Mesh const& mesh = menuMeshes->lookup(word.substr(i, 1));
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 			}
 

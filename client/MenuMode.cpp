@@ -11,16 +11,16 @@
 #include <iostream>
 
 //---------- resources ------------
-Load<MeshBuffer> menu_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
+Load<MeshBuffer> menuMeshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
 
 // Attrib locations in menu_program:
-GLint menu_program_Position = -1;
+GLint menuProgramPosition = -1;
 // Uniform locations in menu_program:
-GLint menu_program_mvp = -1;
-GLint menu_program_color = -1;
+GLint menuProgramMVP = -1;
+GLint menuProgramColor = -1;
 
 // Menu program itself:
-Load<GLProgram> menu_program(LoadTagInit, []() {
+Load<GLProgram> menuProgram(LoadTagInit, []() {
 	GLProgram* ret = new GLProgram(
 			"#version 330\n"
 			"uniform mat4 mvp;\n"
@@ -35,19 +35,19 @@ Load<GLProgram> menu_program(LoadTagInit, []() {
 			"	fragColor = vec4(color, 1.0);\n"
 			"}\n");
 
-	menu_program_Position = (*ret)("Position");
-	menu_program_mvp = (*ret)["mvp"];
-	menu_program_color = (*ret)["color"];
+	menuProgramPosition = (*ret)("Position");
+	menuProgramMVP = (*ret)["mvp"];
+	menuProgramColor = (*ret)["color"];
 
 	return ret;
 });
 
 // Binding for using menu_program on menu_meshes:
-Load<GLVertexArray> menu_binding(LoadTagDefault, []() {
+Load<GLVertexArray> menuBinding(LoadTagDefault, []() {
 	GLVertexArray* ret = new GLVertexArray(
-			GLVertexArray::make_binding(menu_program->program, {
-																														 {menu_program_Position, menu_meshes->Position},
-																												 }));
+			GLVertexArray::make_binding(menuProgram->program, {
+																														{menuProgramPosition, menuMeshes->Position},
+																												}));
 	return ret;
 });
 
@@ -105,8 +105,8 @@ void MenuMode::draw(glm::uvec2 const& drawable_size) {
 		total_height += choice.height + 2.0f * choice.padding;
 	}
 
-	glUseProgram(menu_program->program);
-	glBindVertexArray(menu_binding->array);
+	glUseProgram(menuProgram->program);
+	glBindVertexArray(menuBinding->array);
 
 	// character width and spacing helpers:
 	// (...in terms of the menu font's default 3-unit height)
@@ -158,10 +158,10 @@ void MenuMode::draw(glm::uvec2 const& drawable_size) {
 				float s = choice.height * (1.0f / 3.0f);
 				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
 																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(s * x, y, 0.0f, 1.0f));
-				glUniformMatrix4fv(menu_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(menu_program_color, 1.0f, 1.0f, 1.0f);
+				glUniformMatrix4fv(menuProgramMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+				glUniform3f(menuProgramColor, 1.0f, 1.0f, 1.0f);
 
-				MeshBuffer::Mesh const& mesh = menu_meshes->lookup(label.substr(i, 1));
+				MeshBuffer::Mesh const& mesh = menuMeshes->lookup(label.substr(i, 1));
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 			}
 

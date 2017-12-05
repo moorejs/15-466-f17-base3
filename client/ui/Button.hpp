@@ -6,8 +6,19 @@
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
+#include "../GLProgram.hpp"
+#include "../GLVertexArray.hpp"
+#include "../Load.hpp"
 #include "../MeshBuffer.hpp"
+
+extern Load<MeshBuffer> menuMeshes;
+extern Load<GLProgram> menuProgram;
+extern Load<GLVertexArray> menuBinding;
+extern GLint menuProgramPosition;
+extern GLint menuProgramMVP;
+extern GLint menuProgramColor;
 
 struct Button {
 	glm::vec2 pos;
@@ -22,6 +33,32 @@ struct Button {
 
 	bool contains(const glm::vec2& point) const {
 		return point.x > pos.x - rad.x && point.x < pos.x + rad.x && point.y > pos.y - rad.y && point.y < pos.y + rad.y;
+	}
+
+	void draw() {
+		static const MeshBuffer::Mesh& rect = menuMeshes->lookup("Button");
+
+		glm::mat4 mvp =
+				glm::mat4(glm::vec4(rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, rad.y, 0.0f, 0.0f),
+									glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(pos.x, pos.y, -0.05f, 1.0f)	// z is back to show text
+				);
+
+		glUniformMatrix4fv(menuProgramMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+
+		glm::vec3 drawColor = color;
+		if (selected) {
+			drawColor *= 1.25f;
+		}
+		if (!isEnabled()) {
+			drawColor *= 0.1f;
+		}
+
+		glUniform3f(menuProgramColor, drawColor.x, drawColor.y, drawColor.z);
+		glDrawArrays(GL_TRIANGLES, rect.start, rect.count);
+
+		// TODO: add back in moving outline
+		// glm::vec2 outlineSize = glm::vec2(0.005f, 0.0075f);
+		// outlineSize += outlineSize.x / 2.0f * std::sin(1.5f * counter * 2 * 3.14159f) + outlineSize.x / 2.0f;
 	}
 };
 
@@ -108,7 +145,14 @@ class ButtonGroup {
 	void onPrev() { setSelected(firePrev(selected)); }
 	void onNext() { setSelected(fireNext(selected)); }
 
-	void draw(const MeshBuffer::Mesh& mesh, GLint mvp, GLint color) {}
+	void draw() {
+		glUseProgram(menuProgram->program);
+		glBindVertexArray(menuBinding->array);
+
+		for (auto& button : buttons) {
+			button->draw();
+		}
+	}
 
 	std::vector<std::unique_ptr<Button>> buttons;
 
