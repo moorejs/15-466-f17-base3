@@ -20,7 +20,6 @@
 #include <thread>
 
 #include "../shared/Server.hpp"
-#include "Config.hpp"
 #include "Sounds.h"
 #include "ui/Button.hpp"
 
