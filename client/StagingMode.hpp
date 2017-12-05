@@ -59,7 +59,6 @@ struct StagingMode : public Mode {
 	};
 	std::unique_ptr<StagingState> state;
 
-
 	Button robberBtn;
 	Button copBtn;
 	Button startBtn;

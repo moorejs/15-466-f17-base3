@@ -22,6 +22,7 @@
 #include "../shared/Server.hpp"
 #include "Config.hpp"
 #include "Sounds.h"
+#include "ui/Button.hpp"
 
 int main(int argc, char** argv) {
 	// Sound::init(argc, argv);
@@ -96,12 +97,15 @@ int main(int argc, char** argv) {
 
 	//------------ load all assets -----------
 	call_load_functions();
-	// TODO: probably don't want to load everything at the start.
 
 	//------------ set up modes -----------
 	std::shared_ptr<GameMode> game = std::make_shared<GameMode>();
 	std::shared_ptr<StagingMode> staging = std::make_shared<StagingMode>();
 	std::shared_ptr<MenuMode> menu = std::make_shared<MenuMode>();
+
+	ButtonGroup menuButtons;
+	Button* btn;
+	btn = menuButtons.add("first", {0.0f, 0.0f, 0.0f});
 
 	menu->choices.emplace_back("ODD ONE OUT");
 	menu->choices.emplace_back("PLAY LOCAL", [&](MenuMode::Choice&) {

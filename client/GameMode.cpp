@@ -14,7 +14,6 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-#include "../shared/Collisions.h"
 #include "../shared/State.hpp"
 #include "../shared/person.h"
 #include "Sounds.h"
@@ -249,38 +248,24 @@ GameMode::GameMode() {
 	collisionFramework.addBounds(BBox2D(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
 	collisionFramework.addBounds(BBox2D(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
 
-	snapshotBtn.pos = {-2.0f / 3.0f, -0.92f};
-	snapshotBtn.rad = {0.3f, 0.06f};
-	snapshotBtn.label = "SNAPSHOT";
-	snapshotBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
-	snapshotBtn.onFire = [&]() {
-		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::SNAPSHOT}));
-	};
-	snapshotBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
+	auto isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
 
-	anonymousTipBtn.pos = {0.0f, -0.92f};
-	anonymousTipBtn.rad = {0.3f, 0.06f};
-	anonymousTipBtn.label = "ANON TIP";
-	anonymousTipBtn.isEnabled = [&]() -> bool {
-		return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT;
-	};
-	anonymousTipBtn.onFire = [&]() {
-		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP}));
-	};
-	anonymousTipBtn.color = glm::vec3(0.1f, 0.6f, 0.1f);
+	Button* btn;
+	glm::vec3 color = {0.1f, 0.6f, 0.1f};
 
-	roadblockBtn.pos = {2.0f / 3.0f, -0.92f};
-	roadblockBtn.rad = {0.3f, 0.06f};
-	roadblockBtn.label = "ROAD BLOCK";
-	roadblockBtn.isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
-	roadblockBtn.onFire = [&]() {
-		sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK}));
-	};
-	roadblockBtn.color = {0.1f, 0.6f, 0.1f};
+	btn = copButtons.add("SNAPSHOT", color);
+	btn->isEnabled = isEnabled;
+	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::SNAPSHOT})); };
 
-	buttons.emplace_back(&snapshotBtn);
-	buttons.emplace_back(&anonymousTipBtn);
-	buttons.emplace_back(&roadblockBtn);
+	btn = copButtons.add("ANON TIP", color);
+	btn->isEnabled = isEnabled;
+	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP})); };
+
+	btn = copButtons.add("ROAD BLOCK", color);
+	btn->isEnabled = isEnabled;
+	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK})); };
+
+	copButtons.layoutHorizontal(0.06f, -0.92f);
 }
 
 // https://www.bensound.com/royalty-free-music/track/summer
@@ -366,7 +351,7 @@ Ray GameMode::getCameraRay(glm::vec2 mouse) {
 	return r;
 }
 bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
-	if (sock && (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP)) {
+	if (e.type == SDL_KEYDOWN) {
 		static constexpr int up = SDL_SCANCODE_W;
 		static constexpr int down = SDL_SCANCODE_S;
 		static constexpr int left = SDL_SCANCODE_A;
@@ -399,6 +384,18 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 	if (e.type == SDL_KEYDOWN) {
 		switch (e.key.keysym.sym) {
+			case SDLK_LEFT:
+				copButtons.onPrev();
+				break;
+
+			case SDLK_RIGHT:
+				copButtons.onNext();
+				break;
+
+			case SDLK_RSHIFT:
+				copButtons.onKey();
+				break;
+
 			case SDLK_LSHIFT:
 
 				for (auto person : Person::people) {
@@ -461,8 +458,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			camera.azimuth += -2.0f * (mouse.x - old_mouse.x);
 		}
 
-		for (Button* btn : buttons) {
-			btn->hover = btn->contains(mouse);
+		if (staging->settings.localMultiplayer || staging->player != staging->robber) {
+			copButtons.checkMouseHover(mouse.x, mouse.y);
 		}
 	} else if (e.type == SDL_MOUSEBUTTONDOWN) {
 		Ray r = getCameraRay(mouse);
@@ -475,10 +472,8 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 			}
 		}
 
-		for (Button* btn : buttons) {
-			if (btn->hover && btn->isEnabled()) {
-				btn->onFire();
-			}
+		if (staging->settings.localMultiplayer || staging->player != staging->robber) {
+			copButtons.onClick();
 		}
 
 		////
@@ -773,7 +768,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		glm::vec3 textColor = glm::vec3(1.0f);
 
 		glm::vec2 outlineSize = glm::vec2(0.005f, 0.0075f);
-		if (button.hover) {
+		if (button.selected) {
 			outlineSize += outlineSize.x / 2.0f * std::sin(1.5f * counter * 2 * 3.14159f) + outlineSize.x / 2.0f;
 
 			color *= 1.25f;
@@ -824,14 +819,14 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 		} else {
 			// cop only views
-			draw_button(roadblockBtn);
-			draw_button(snapshotBtn);
-			draw_button(anonymousTipBtn);
+			for (auto& button : copButtons.buttons) {
+				draw_button(*button);
+			}
 		}
 	} else {
-		draw_button(roadblockBtn);
-		draw_button(snapshotBtn);
-		draw_button(anonymousTipBtn);
+		for (auto& button : copButtons.buttons) {
+			draw_button(*button);
+		}
 	}
 
 	if (gameResultPosted) {

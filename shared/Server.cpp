@@ -220,7 +220,7 @@ Server::Server() {
 					if (stagingState.starting) {
 						stagingState.startingTimer += dt;
 
-						if (stagingState.startingTimer > 5.0f) {
+						if (stagingState.startingTimer > 2.0f) {
 							std::cout << "Game starting. Leaving staging." << std::endl;
 							for (auto& c : clients) {
 								c->sock.writeQueue.enqueue(Packet::pack(MessageType::STAGING_START_GAME, {stagingState.seed}));

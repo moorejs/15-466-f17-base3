@@ -74,6 +74,7 @@ struct GameMode : public Mode {
 	Button snapshotBtn;
 	Button anonymousTipBtn;
 	Button roadblockBtn;
+	ButtonGroup copButtons;
 	std::vector<Button*> buttons;
 
 	Socket* sock;
