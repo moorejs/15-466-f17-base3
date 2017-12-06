@@ -742,20 +742,20 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		static const glm::vec3 iconScale = {0.01f, 0.1f, 0.1f};
 		static const float height = 1.1f;	// above player
 
-		if (counter < 7.5f && person->playerClass >= 9) {	// show richest targets
-			glm::mat4 local_to_world =
-					make_local_to_parent(person->pos + glm::vec3(0.0f, 0.0f, height), person->rot, iconScale);
-			// compute modelview+projection (object space to clip space) matrix for this object:
-			glm::mat4 mvp = world_to_clip * local_to_world;
-
-			drawRect(mvp, {1.0f, 0.0f, 0.0f});
-		} else if (person->robbed) {
+		if (person->robbed) {
 			glm::mat4 local_to_world =
 					make_local_to_parent(person->pos + glm::vec3(0.0f, 0.0f, height), person->rot, iconScale);
 			// compute modelview+projection (object space to clip space) matrix for this object:
 			glm::mat4 mvp = world_to_clip * local_to_world;
 
 			drawRect(mvp, {0.0f, 1.0f, 0.0f});
+		} else if (counter < 7.5f && person->playerClass >= 9) {	// show richest targets
+			glm::mat4 local_to_world =
+					make_local_to_parent(person->pos + glm::vec3(0.0f, 0.0f, height), person->rot, iconScale);
+			// compute modelview+projection (object space to clip space) matrix for this object:
+			glm::mat4 mvp = world_to_clip * local_to_world;
+
+			drawRect(mvp, {1.0f, 0.0f, 0.0f});
 		}
 	}
 
