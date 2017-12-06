@@ -13,6 +13,7 @@ enum Power : uint8_t {
 	SNAPSHOT,
 	ANON_TIP,
 	ROADBLOCK,
+	DEPLOY,
 };
 
 enum Control : uint8_t {
@@ -33,7 +34,9 @@ enum MessageType : uint8_t {
 	STAGING_PLAYER_SYNC,
 	INPUT,
 	GAME_ROBBER_POS,
+	GAME_COP_POS,
 	GAME_ACTIVATE_POWER,
+	GAME_TIME_OVER,
 };
 
 struct Packet {

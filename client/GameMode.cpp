@@ -265,6 +265,11 @@ GameMode::GameMode() {
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK})); };
 
+	// make this on a row of it's own or something
+	btn = copButtons.add("deploy", color);
+	btn->isEnabled = isEnabled;
+	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::DEPLOY})); };
+
 	copButtons.layoutHorizontal(0.06f, -0.92f);
 }
 
@@ -437,11 +442,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 						std::cout << "Thief NOT Found. Cops lose!"
 											<< "\n";
 					}
-
-				}
-				// DEPLOY COP
-				else {
-					endGame();
 				}
 				break;
 			default:
@@ -543,6 +543,16 @@ void GameMode::update(float elapsed) {
 				break;
 			}
 
+			case MessageType::GAME_COP_POS: {
+				cop.pos.x = *reinterpret_cast<float*>(&out->payload[1]);
+				cop.pos.y = *reinterpret_cast<float*>(&out->payload[1 + sizeof(float)]);
+
+				// TODO: update rotation.. might just go with a local value, also move the player locally and then snap to
+				// correct value
+
+				break;
+			}
+
 			case MessageType::GAME_ACTIVATE_POWER: {
 				std::cout << "Activing power " << (int)out->payload[1] << std::endl;
 
@@ -562,11 +572,24 @@ void GameMode::update(float elapsed) {
 						break;
 					}
 
-					default: {}
+					case Power::DEPLOY: {
+						endGame();
+						break;
+					}
+
+					default: { std::cout << "Power not handled" << std::endl; }
 				}
 
 				// TODO: add some leniency in timing because server timing may not match up exactly
 				state.powerTimer = 0.0f;
+
+				break;
+			}
+
+			case MessageType::GAME_TIME_OVER: {
+				// TODO: something special that says time is up
+
+				endGame();
 
 				break;
 			}
@@ -583,7 +606,6 @@ void GameMode::update(float elapsed) {
 
 void GameMode::draw(glm::uvec2 const& drawable_size) {
 	screenSize = drawable_size;
-	// TODO: this is a affected by retina, still need to figure this out
 
 	// camera:
 	scene.camera.transform.position =

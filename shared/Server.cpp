@@ -64,6 +64,7 @@ Server::Server() {
 
 		// TODO: this should be in a settings struct
 		const float POWER_LIMIT = 10.0f;
+		const float TIME_LIMIT = 15.0f;	// TEMP, normally 150
 		uint8_t seed = 200;
 	} stagingState;
 
@@ -71,9 +72,23 @@ Server::Server() {
 		Person* robber;
 		Person* cop;
 
+		bool ended = false;
+		float gameTimer = 0.0f;
+
 		float powerTimer = 0.0f;
 		Power activePower = Power::NONE;
 	} gameState;
+
+	auto endGame = [&]() {
+		gameState.ended = true;
+
+		Person::freezeAll();
+		gameState.robber->isMoving = false;
+
+		gameState.cop = new Person();
+		gameState.cop->pos = glm::vec3(-1.0f, 5.5f, 0.0f);
+		gameState.cop->isMoving = true;
+	};
 
 	// clock timing logic from https://stackoverflow.com/a/20381816
 	typedef std::chrono::duration<int, std::ratio<1, 30>> frame_duration;
@@ -259,7 +274,7 @@ Server::Server() {
 							switch (out->payload[0]) {	// message type
 
 								case MessageType::INPUT: {
-									if (client.get() == stagingState.robber) {
+									if (client.get() == stagingState.robber || gameState.ended) {
 										frameUp = frameUp || out->payload[1] == Control::UP;
 										frameDown = frameDown || out->payload[1] == Control::DOWN;
 										frameLeft = frameLeft || out->payload[1] == Control::LEFT;
@@ -294,28 +309,61 @@ Server::Server() {
 					}
 
 					// game state updates
+					gameState.gameTimer += dt;
 					gameState.powerTimer += dt;
+
 					if (gameState.powerTimer >= stagingState.POWER_LIMIT) {
 						gameState.activePower = Power::NONE;
 					}
 
-					gameState.robber->setVel(frameUp, frameDown, frameLeft, frameRight);
-					gameState.robber->move(dt, nullptr);
+					if (gameState.ended) {
+						gameState.cop->setVel(frameUp, frameDown, frameLeft, frameRight);
+						gameState.cop->move(dt, nullptr);
+					} else {
+						gameState.robber->setVel(frameUp, frameDown, frameLeft, frameRight);
+						gameState.robber->move(dt, nullptr);
+					}
 
 					// write state updates
-					for (auto& client : clients) {
-						// TODO: only send on player move (delta compression)
+					if (gameState.ended) {
+						for (auto& client : clients) {
+							// TODO: only send on player move (delta compression)
 
-						// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
-						uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.robber->pos.x);
-						uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.robber->pos.y);
+							// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
+							uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.cop->pos.x);
+							uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.cop->pos.y);
 
-						client->sock.writeQueue.enqueue(
-								Packet::pack(MessageType::GAME_ROBBER_POS, {x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
+							client->sock.writeQueue.enqueue(
+									Packet::pack(MessageType::GAME_COP_POS, {x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
+						}
+					} else {
+						for (auto& client : clients) {
+							// TODO: only send on player move (delta compression)
 
-						if (gameState.activePower != Power::NONE && gameState.powerTimer <= dt) {
+							// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
+							uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.robber->pos.x);
+							uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.robber->pos.y);
+
+							client->sock.writeQueue.enqueue(
+									Packet::pack(MessageType::GAME_ROBBER_POS, {x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
+						}
+					}
+
+					if (gameState.activePower != Power::NONE && gameState.powerTimer <= dt) {
+						for (auto& client : clients) {
 							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower}));
 						}
+
+						if (gameState.activePower == Power::DEPLOY) {
+							endGame();
+						}
+					}
+
+					if (!gameState.ended && gameState.gameTimer >= stagingState.TIME_LIMIT) {
+						for (auto& client : clients) {
+							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_TIME_OVER, {}));
+						}
+						endGame();
 					}
 
 					break;
