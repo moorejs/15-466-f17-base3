@@ -84,3 +84,8 @@ void Person::move(float eps, Collision* col) {
 		}
 	}
 }
+
+void Person::rob() {
+	robbed = true;
+	// TODO: take away money
+}

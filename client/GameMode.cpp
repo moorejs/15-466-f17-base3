@@ -75,6 +75,7 @@ GLint game_program_mvp = -1;
 GLint game_program_mv = -1;
 GLint game_program_itmv = -1;
 GLint game_program_roughness = -1;
+GLint game_program_people_colors = -1;
 
 // Game program itself:
 Load<GLProgram> game_program(LoadTagInit, []() {
@@ -129,8 +130,7 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 	game_program_mv = ret->getUniformLocation("mv", GLProgram::MissingIsWarning);
 	game_program_itmv = ret->getUniformLocation("itmv", GLProgram::MissingIsWarning);
 	game_program_roughness = (*ret)["roughness"];
-	// Person::personIdx = ret->getUniformLocation("index", GLProgram::MissingIsWarning);
-	// Person::colors = ret->getUniformLocation("people_colors", GLProgram::MissingIsWarning);
+	game_program_people_colors = ret->getUniformLocation("people_colors", GLProgram::MissingIsWarning);
 	return ret;
 });
 
@@ -363,6 +363,10 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 
 			case SDLK_LSHIFT:
 
+				if (gameEnded) {
+					break;
+				}
+
 				for (auto person : Person::people) {
 					float distancex = pow(person->pos.x - player.pos.x, 2.0f);
 					float distancey = pow(person->pos.y - player.pos.y, 2.0f);
@@ -376,16 +380,15 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 				}
 
 				if (minDistance < 0.4f) {
-					closestPerson->scale = glm::vec3(0.02f, 0.02f, 0.02f);
-
-					later(2000, []() {
-						for (auto const& person : Person::people) {
-							person->scale = Person::BASE_SCALE;
-						}
+					closestPerson->rob();
+					later(2000, [closestPerson]() {
+						closestPerson->scale = Person::BASE_SCALE;
+						closestPerson->robbed = false;
 					});
 				}
 
 				break;
+
 			case SDLK_SPACE:
 				// Catch thief
 				if (gameEnded) {
@@ -606,7 +609,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.render();
 
-	static bool colorsNotInit = false;
+	static bool colorsNotInit = true;
 
 	static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 
@@ -619,10 +622,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 								 glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
 								 glm::vec4(0.0f, 0.0f, scale.z, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	};
-	static auto renderAll = [&](Scene::Camera camera, std::list<Scene::Light> lights, Person player, Person cop) {
-		glm::mat4 world_to_camera = camera.transform.make_world_to_local();
-		glm::mat4 world_to_clip = camera.make_projection() * world_to_camera;
 
+	glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
+	glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
+	static auto renderAll = [&](std::list<Scene::Light> lights, Person player, Person cop) {
 		if (colorsNotInit) {
 			for (int i = 0; i < NUM_PLAYER_CLASSES; i++) {
 				Person::PeopleColors[i] = glm::vec3(Person::random(), Person::random(), Person::random());
@@ -636,6 +639,9 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			(void)mv;
 		}
 
+		glUseProgram(game_program->program);
+		glUniform3fv(game_program_people_colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
+		glBindVertexArray(binding->array);
 		for (unsigned int i = 0; i <= Person::people.size(); i++) {
 			Person* person;
 			if (i == Person::people.size())
@@ -657,28 +663,16 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
 
 			// set up program uniforms:
-			glUseProgram(game_program->program);
-			if (game_program_mvp != -1U) {
-				glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-			}
-			if (game_program_mv != -1U) {
-				glUniformMatrix4x3fv(game_program_mv, 1, GL_FALSE, glm::value_ptr(mv));
-			}
-			if (game_program_itmv != -1U) {
-				glUniformMatrix3fv(game_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
-			}
-			// glUniform1i(Person::personIdx, person->playerClass);
-			// glUniform3fv(Person::colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
-
+			glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+			glUniformMatrix4x3fv(game_program_mv, 1, GL_FALSE, glm::value_ptr(mv));
+			glUniformMatrix3fv(game_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
+			glUniform1i(game_program_index, person->playerClass);
 			glUniform1f(game_program_roughness, 1.0f);
 
-			glBindVertexArray(binding->array);
-
-			// draw the object:
 			glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 		}
 	};
-	renderAll(scene.camera, scene.lights, player, cop);
+	renderAll(scene.lights, player, cop);
 
 	float aspect = drawable_size.x / float(drawable_size.y);
 	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
@@ -732,6 +726,38 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			x += width(word[i]);
 		}
 	};
+
+	static const MeshBuffer::Mesh& rect = menuMeshes->lookup("Button");
+	static auto drawRect = [&](const glm::mat4& mvp, const glm::vec3 color) {
+		glUseProgram(menuProgram->program);
+		glBindVertexArray(menuBinding->array);
+
+		glUniformMatrix4fv(menuProgramMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+		glUniform3f(menuProgramColor, color.x, color.y, color.z);
+
+		glDrawArrays(GL_TRIANGLES, rect.start, rect.count);
+	};
+
+	for (auto& person : Person::people) {
+		static const glm::vec3 iconScale = {0.01f, 0.1f, 0.1f};
+		static const float height = 1.1f;	// above player
+
+		if (counter < 7.5f && person->playerClass >= 9) {	// show richest targets
+			glm::mat4 local_to_world =
+					make_local_to_parent(person->pos + glm::vec3(0.0f, 0.0f, height), person->rot, iconScale);
+			// compute modelview+projection (object space to clip space) matrix for this object:
+			glm::mat4 mvp = world_to_clip * local_to_world;
+
+			drawRect(mvp, {1.0f, 0.0f, 0.0f});
+		} else if (person->robbed) {
+			glm::mat4 local_to_world =
+					make_local_to_parent(person->pos + glm::vec3(0.0f, 0.0f, height), person->rot, iconScale);
+			// compute modelview+projection (object space to clip space) matrix for this object:
+			glm::mat4 mvp = world_to_clip * local_to_world;
+
+			drawRect(mvp, {0.0f, 1.0f, 0.0f});
+		}
+	}
 
 	if (isTestimonyShowing) {
 		draw_word("ANONYMOUS TIP", 0, 0);

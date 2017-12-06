@@ -13,7 +13,6 @@
 #define NUM_PLAYER_CLASSES_STR "10"
 class Person {
  public:
-
 	static const glm::vec3 BASE_SCALE;
 
 	static std::vector<Person*> people;
@@ -37,6 +36,8 @@ class Person {
 	glm::vec3 pos, vel, scale;
 	glm::quat rot;
 
+	bool robbed;
+
 	Person() {
 		humanControlled = false;
 		isMoving = true;
@@ -45,12 +46,15 @@ class Person {
 		vel = glm::vec3();
 		playerClass = -1;
 		scale = BASE_SCALE;
+
+		robbed = false;
 	}
 
 	glm::vec3 randVel();
 	void placeInScene(Collision* col = NULL);
 	void setVel(bool up, bool down, bool left, bool right);
 	void move(float eps, Collision* col = NULL);
+	void rob();
 
 	static void moveAll(float eps, Collision* col = NULL) {
 		for (auto const& person : people)

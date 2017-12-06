@@ -71,9 +71,6 @@ struct GameMode : public Mode {
 
 	bool did_end = false;
 
-	Button snapshotBtn;
-	Button anonymousTipBtn;
-	Button roadblockBtn;
 	ButtonGroup copButtons;
 	std::vector<Button*> buttons;
 
