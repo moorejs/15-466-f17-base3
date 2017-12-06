@@ -18,6 +18,13 @@
 #include "../shared/person.h"
 #include "Sounds.h"
 
+extern Load<MeshBuffer> menuMeshes;
+extern Load<GLProgram> menuProgram;
+extern Load<GLVertexArray> menuBinding;
+extern GLint menuProgramPosition;
+extern GLint menuProgramMVP;
+extern GLint menuProgramColor;
+
 bool isSnapshotOn = false;
 bool isTestimonyShowing = false;
 float randX;
@@ -32,15 +39,8 @@ Uint32 snapshot_delay = 20000;
 Uint32 testimony_delay = 12000;
 Uint32 testimony_reset_delay = 4000;
 Uint32 snapshot_reset_delay = 4000;
-Collision collisionFramework = Collision(BBox2D(glm::vec2(-1.92, -7.107), glm::vec2(6.348, 9.775)));
 
-// Attrib locations in staging_program:
-GLint word_program_Position = -1;
-// Uniform locations in staging_program:
-GLint word_program_mvp = -1;
-GLint word_program_color = -1;	// color
 Person player;
-
 Person cop;
 
 std::string endGameTxt = "";
@@ -64,40 +64,6 @@ void spawnCop() {
 }
 
 Load<MeshBuffer> meshes(LoadTagInit, []() { return new MeshBuffer("city.pnc"); });
-
-Load<MeshBuffer> word_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
-
-// Menu program itself:
-Load<GLProgram> word_program(LoadTagInit, []() {
-	GLProgram* ret = new GLProgram(
-			"#version 330\n"
-			"uniform mat4 mvp;\n"
-			"in vec4 Position;\n"
-			"void main() {\n"
-			"	gl_Position = mvp * Position;\n"
-			"}\n",
-			"#version 330\n"
-			"uniform vec3 color;\n"
-			"out vec4 fragColor;\n"
-			"void main() {\n"
-			"	fragColor = vec4(color, 1.0);\n"
-			"}\n");
-
-	word_program_Position = (*ret)("Position");
-	word_program_mvp = (*ret)["mvp"];
-	word_program_color = (*ret)["color"];
-
-	return ret;
-});
-
-// Binding for using staging_program on staging_meshes:
-Load<GLVertexArray> word_binding(LoadTagDefault, []() {
-	GLVertexArray* ret = new GLVertexArray(
-			GLVertexArray::make_binding(word_program->program, {
-																														 {word_program_Position, word_meshes->Position},
-																												 }));
-	return ret;
-});
 
 // Attrib locations in game_program:
 GLint game_program_Position = -1;
@@ -241,12 +207,6 @@ GameMode::GameMode() {
 			}
 		}
 	}
-	// TODO: asset pipeline bounding boxes. Hard coded for now.
-	// these are the four houses
-	collisionFramework.addBounds(BBox2D(glm::vec2(0.719, -1.003), glm::vec2(2.763, 2.991)));
-	collisionFramework.addBounds(BBox2D(glm::vec2(4.753, -2.318), glm::vec2(6.737, -0.24)));
-	collisionFramework.addBounds(BBox2D(glm::vec2(4.451, 6.721), glm::vec2(9.929, 8.799)));
-	collisionFramework.addBounds(BBox2D(glm::vec2(0.247, 7.31), glm::vec2(2.397, 9.986)));
 
 	auto isEnabled = [&]() -> bool { return !gameEnded && state.powerTimer > staging->settings.POWER_TIMEOUT; };
 
@@ -303,7 +263,7 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 		}
 
 		cur->rot = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
-		cur->placeInScene((i >= numPlayers - 1) ? NULL : &collisionFramework);
+		cur->placeInScene((i >= numPlayers - 1) ? NULL : &Data::collisionFramework);
 	}
 }
 
@@ -510,10 +470,10 @@ void GameMode::update(float elapsed) {
 		else
 			player.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
 
-		player.move(elapsed, &collisionFramework);
-		cop.move(elapsed, &collisionFramework);
+		player.move(elapsed, &Data::collisionFramework);
+		cop.move(elapsed, &Data::collisionFramework);
 	}
-	Person::moveAll(elapsed, &collisionFramework);
+	Person::moveAll(elapsed, &Data::collisionFramework);
 
 	time_t curtime;
 	time(&curtime);
@@ -725,8 +685,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	glm::vec2 scale = glm::vec2(0.55f / aspect, 0.55f);
 	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
 																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	glUseProgram(word_program->program);
-	glBindVertexArray(word_binding->array);
+	glUseProgram(menuProgram->program);
+	glBindVertexArray(menuBinding->array);
 
 	static auto draw_word = [&projection](const std::string& word, float init_x, float y, float fontSize = 1.f,
 																				glm::vec3 color = glm::vec3(1, 1, 1)) {
@@ -762,10 +722,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
 																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
 																							 glm::vec4(2 * init_x + s * x, 2 * y + 0.1, 0.0f, 1.0f));
-				glUniformMatrix4fv(word_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(word_program_color, color.r, color.g, color.b);
+				glUniformMatrix4fv(menuProgramMVP, 1, GL_FALSE, glm::value_ptr(mvp));
+				glUniform3f(menuProgramColor, color.r, color.g, color.b);
 
-				MeshBuffer::Mesh const& mesh = word_meshes->lookup(word.substr(i, 1));
+				MeshBuffer::Mesh const& mesh = menuMeshes->lookup(word.substr(i, 1));
 				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
 			}
 
@@ -850,7 +810,7 @@ void GameMode::activateTestimony() {
 }
 
 void GameMode::activateRoadblock(int roadblock) {
-	collisionFramework.addBounds(Data::roadblocks[roadblock]);
+	Data::collisionFramework.addBounds(Data::roadblocks[roadblock]);
 
 	// TODO: track remaining, if none remaining disable button
 }

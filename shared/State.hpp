@@ -5,8 +5,23 @@
 #include "Collisions.h"
 
 namespace Data {
+
+static Collision collisionFramework = []() {
+	Collision framework = Collision({{-1.92f, -7.107f}, {6.348f, 9.775f}});
+
+	// TODO: asset pipeline bounding boxes. Hard coded for now.
+	// these are the four houses
+	framework.addBounds({{0.719, -1.003}, {2.763, 2.991}});
+	framework.addBounds({{4.753f, -2.318f}, {6.737f, -0.24f}});
+	framework.addBounds({{4.451f, 6.721f}, {9.929f, 8.799f}});
+	framework.addBounds({{0.247f, 7.31f}, {2.397f, 9.986f}});
+
+	return framework;
+}();
+
 static std::array<BBox2D, 1> roadblocks = {{BBox2D({0.0f, 0.0f}, {1.0f, 1.0f})}};
-};
+
+};	// namespace Data
 
 enum Power : uint8_t {
 	NONE,

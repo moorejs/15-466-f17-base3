@@ -318,10 +318,10 @@ Server::Server() {
 
 					if (gameState.ended) {
 						gameState.cop->setVel(frameUp, frameDown, frameLeft, frameRight);
-						gameState.cop->move(dt, nullptr);
+						gameState.cop->move(dt, &Data::collisionFramework);
 					} else {
 						gameState.robber->setVel(frameUp, frameDown, frameLeft, frameRight);
-						gameState.robber->move(dt, nullptr);
+						gameState.robber->move(dt, &Data::collisionFramework);
 					}
 
 					// write state updates
