@@ -21,13 +21,13 @@ if $(OS) = NT {
 		KIT_LIBS = ../kit-libs-osx ;
 		C++ = clang++ ;
 		C++FLAGS =
-			-std=c++14 -g -Wall -Werror
+			-std=c++14 -g -Wall 
 			-I$(KIT_LIBS)/libpng/include                           #libpng
 			-I$(KIT_LIBS)/glm/include                              #glm
 			`PATH=$(KIT_LIBS)/SDL2/bin:$PATH sdl2-config --cflags` #SDL2
 			;
 		LINK = clang++ ;
-		LINKFLAGS = -std=c++14 -g -Wall -Werror ;
+		LINKFLAGS = -std=c++14 -g -Wall  ;
 
 		LINKLIBS =
 			-L$(KIT_LIBS)/libpng/lib -lpng                      #libpng
@@ -41,14 +41,14 @@ if $(OS) = NT {
 		KIT_LIBS = ../kit-libs-linux ;
 		C++ = g++ ;
 		C++FLAGS =
-			-std=c++14 -g -Wall -Werror 
+			-std=c++14 -g -Wall  
 			-I$(KIT_LIBS)/libpng/include                           #libpng
 			-I$(KIT_LIBS)/glm/include                              #glm
 			`PATH=$(KIT_LIBS)/SDL2/bin:$PATH sdl2-config --cflags` #SDL2
 			;
 
 		LINK = g++ ;
-		LINKFLAGS = -std=c++11 -g -Wall -Werror ;
+		LINKFLAGS = -std=c++11 -g -Wall  ;
 
 		LINKLIBS =
 			-lopenal -lalut

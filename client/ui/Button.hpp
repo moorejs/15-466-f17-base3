@@ -118,7 +118,7 @@ class ButtonGroup {
 	}
 
 	void checkMouseHover(float x, float y) {
-		for (int i = 0; i < buttons.size(); i++) {
+		for (int i = 0; i < (int)buttons.size(); i++) {
 			if (buttons[i]->contains({x, y})) {
 				buttons[i]->hover = true;
 				setSelected(i);

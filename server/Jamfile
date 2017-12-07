@@ -6,16 +6,16 @@ if $(OS) = MACOSX {
 	LINK = clang++ ;
 } else if $(OS) = LINUX {
 	KIT_LIBS = ../kit-libs-linux ;
-	C++ = g++ ;
-	LINK = g++ ;
+	C++ = g++ -pthread ;
+	LINK = g++ -pthread ;
 }
 
 C++FLAGS =
-		-std=c++14 -g -Wall -Werror
+		-std=c++14 -g -Wall 
 		-I$(KIT_LIBS)/glm/include
 		;
 
-LINKFLAGS = -std=c++14 -g -Wall -Werror ;
+LINKFLAGS = -std=c++14 -g -Wall  ;
 
 if $(DEBUG) = true {
 	C++FLAGS = $(C++FLAGS) -DDEBUG ;
