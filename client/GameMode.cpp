@@ -389,9 +389,11 @@ GameMode::GameMode() {
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP})); };
 
+	/*
 	btn = copButtons.add("ROAD BLOCK", color);
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK})); };
+	*/
 
 	// make this on a row of it's own or something
 	btn = copButtons.add("DEPLOY", color);
@@ -411,8 +413,6 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 	twister.seed(staging->settings.seed);
 	// bgmusic = Sound("../sounds/bensound-summer.wav", true);
 	// bgmusic.play();
-
-	std::cout << "first random values" << rand() << " " << rand() << " " << rand() << std::endl;
 
 	Person::random = rand;
 	for (int i = 0; i <= crowdSize; i++) {
@@ -502,12 +502,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		static constexpr int altLeft = SDL_SCANCODE_LEFT;
 		static constexpr int altRight = SDL_SCANCODE_RIGHT;
 		static constexpr int altAction = SDL_SCANCODE_RSHIFT;
-
-		/*
-		if (e.key.keysym.sym == SDLK_TAB)
-			camera.radius++;
-		else if (e.key.keysym.sym == SDLK_LSHIFT)
-			camera.radius--;*/
 
 		if (!staging->settings.localMultiplayer) {
 			switch (e.key.keysym.scancode) {
@@ -617,9 +611,9 @@ void GameMode::update(float elapsed) {
 	static const uint8_t* keys = SDL_GetKeyboardState(NULL);
 
 	if (staging->settings.clientSidePrediction) {
-		if (gameEnded)
+		if (gameEnded && staging->player != staging->robber)
 			cop.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
-		else
+		else if (staging->player == staging->robber)
 			player.setVel(keys[SDL_SCANCODE_W], keys[SDL_SCANCODE_S], keys[SDL_SCANCODE_A], keys[SDL_SCANCODE_D]);
 
 		player.move(elapsed, &Data::collisionFramework);
@@ -640,21 +634,38 @@ void GameMode::update(float elapsed) {
 
 		switch (out->payload[0]) {
 			case MessageType::GAME_ROBBER_POS: {
-				player.pos.x = *reinterpret_cast<float*>(&out->payload[1]);
-				player.pos.y = *reinterpret_cast<float*>(&out->payload[1 + sizeof(float)]);
+				if (out->payload[1] == 1) {	// vel
+					float newX = *reinterpret_cast<float*>(&out->payload[2]);
+					float newY = *reinterpret_cast<float*>(&out->payload[2 + sizeof(float)]);
 
-				// TODO: update rotation.. might just go with a local value, also move the player locally and then snap to
-				// correct value
+					player.vel.x = newX;
+					player.vel.y = newY;
+				} else {
+					float newX = *reinterpret_cast<float*>(&out->payload[2]);
+					float newY = *reinterpret_cast<float*>(&out->payload[2 + sizeof(float)]);
+
+					// do something less jarring....
+					player.pos.x += (newX - player.pos.x) / 2.0f;
+					player.pos.y += (newY - player.pos.y) / 2.0f;
+				}
 
 				break;
 			}
 
 			case MessageType::GAME_COP_POS: {
-				cop.pos.x = *reinterpret_cast<float*>(&out->payload[1]);
-				cop.pos.y = *reinterpret_cast<float*>(&out->payload[1 + sizeof(float)]);
+				if (out->payload[1] == 1) {	// vel
+					float newX = *reinterpret_cast<float*>(&out->payload[2]);
+					float newY = *reinterpret_cast<float*>(&out->payload[2 + sizeof(float)]);
+					cop.vel.x = newX;
+					cop.vel.y = newY;
+				} else {
+					float newX = *reinterpret_cast<float*>(&out->payload[2]);
+					float newY = *reinterpret_cast<float*>(&out->payload[2 + sizeof(float)]);
 
-				// TODO: update rotation.. might just go with a local value, also move the player locally and then snap to
-				// correct value
+					// do something less jarring....
+					cop.pos.x += (newX - cop.pos.x) / 2.0f;
+					cop.pos.y += (newY - cop.pos.y) / 2.0f;
+				}
 
 				break;
 			}
@@ -770,7 +781,6 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.render();
 
-
 	// static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 
 	static auto make_local_to_parent = [](glm::vec3 position, glm::quat rotation, glm::vec3 scale) {
@@ -785,7 +795,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
 	glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
-	//static bool colorsNotInit = true;
+	// static bool colorsNotInit = true;
 	static auto renderAll = [&](std::list<Scene::Light> lights, Person player, Person cop) {
 		/*if (colorsNotInit) {
 			for (int i = 0; i < NUM_PLAYER_CLASSES; i++) {
@@ -837,9 +847,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 			// Animation Stuff
 			BoneAnimation::PoseBone const* frame;
-            if(person->robbed){
+			if (person->robbed) {
 				frame = animation->get_frame(robbed_anim.begin + person->animationFrameIdx);
-			}else frame = animation->get_frame(walking_anim.begin + person->animationFrameIdx);
+			} else
+				frame = animation->get_frame(walking_anim.begin + person->animationFrameIdx);
 			for (uint32_t b = 0; b < animation->bones.size(); ++b) {
 				BoneAnimation::PoseBone const& pose_bone = frame[b];
 				BoneAnimation::Bone const& bone = animation->bones[b];
@@ -928,7 +939,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	for (auto& person : Person::people) {
 		static const glm::vec3 iconScale = {0.01f, 0.1f, 0.1f};
-		static const float height = 1.1f;	// above player
+		static const float height = 1.25f;	// above player
 
 		if (person->robbed) {
 			glm::mat4 local_to_world =

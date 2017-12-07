@@ -42,7 +42,7 @@ class Person {
 
 	bool robbed;
 
-	Person() {
+	Person() : pos() {
 		humanControlled = false;
 		isMoving = true;
 		isVisible = true;
