@@ -76,6 +76,7 @@ LOCAL =
 	GLProgram
 	MenuMode
 	GameMode
+	BoneAnimation
 	StagingMode
 	Draw
 	#Sounds
@@ -93,6 +94,7 @@ NAMES =
 	person
 	Collisions
 	GameMode
+	BoneAnimation
 	StagingMode
 	Draw
 	#Sounds

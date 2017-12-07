@@ -10,10 +10,10 @@
 #include <functional>
 
 #define NUM_PLAYER_CLASSES 10
-#define NUM_PLAYER_CLASSES_STR "10"
 class Person {
  public:
 	static const glm::vec3 BASE_SCALE;
+	static int ANIMATION_FRAMES;
 
 	static std::vector<Person*> people;
 	static std::function<float()> random;
@@ -27,7 +27,7 @@ class Person {
 	static std::vector<Outfit*> outfits;
 	void changeOutfit();*/
 
-	int playerClass;
+	int playerClass,animationFrameIdx;
 	bool humanControlled;
 	bool isMoving;
 	bool isVisible;

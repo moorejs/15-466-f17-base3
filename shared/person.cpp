@@ -5,7 +5,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 
-const glm::vec3 Person::BASE_SCALE = glm::vec3(0.012f);
+const glm::vec3 Person::BASE_SCALE = glm::vec3(0.12f);
+int Person::ANIMATION_FRAMES = 160; //animation->frame_bones.size() / animation->bones.size()
 
 std::vector<Person*> Person::people = std::vector<Person*>();
 glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3()};
@@ -33,6 +34,7 @@ Person* makeAI() {
 #define EPS 0.01f
 void Person::placeInScene(Collision* col) {
 	pos = glm::vec3();
+	animationFrameIdx = 0;
 	if (col) {
 		BBox2D bounds = col->board;
 		do {
@@ -41,7 +43,7 @@ void Person::placeInScene(Collision* col) {
 		} while (col->checkHit(glm::vec2(pos.x, pos.y)).hit);
 	}
 
-	playerClass = int(Person::random() * NUM_PLAYER_CLASSES);	// give random player class
+	playerClass = int(Person::random() * NUM_PLAYER_CLASSES); // give random player class
 }
 
 // set player velocity based on controls
@@ -68,14 +70,16 @@ void Person::move(float eps, Collision* col) {
 		glm::vec2 newpt = glm::vec2(pos.x + vel.x * eps, pos.y + vel.y * eps);
 		if (col && (hit = col->checkHit(newpt)).hit) {
 			vel = isAI ? randVel() : glm::vec3();
+			animationFrameIdx = 0;
 		} else {
 			pos += vel * eps;
+			animationFrameIdx = (animationFrameIdx+2) % ANIMATION_FRAMES;
 		}
 
 		if (glm::length(vel) > 0.1) {
 			float angle = atan2(vel.x, -vel.y);
-			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) *
-													 glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0)));
+			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1))/* *
+													 glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0))*/);
 
 			if (isAI) {
 				time_t curtime;

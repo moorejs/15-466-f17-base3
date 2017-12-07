@@ -136,7 +136,7 @@ void StagingMode::reset(bool localMultiplayer) {
 
 	state->settings.localMultiplayer = localMultiplayer;
 
-	sock = Socket::connect("::1", "3490");
+	sock = Socket::connect("localhost", "3490");
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {

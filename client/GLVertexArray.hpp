@@ -11,8 +11,9 @@
  *
  */
 
-#include "GLBuffer.hpp"
 #include "GL.hpp"
+
+#include "GLBuffer.hpp"
 
 #include <iostream>
 #include <set>
@@ -25,6 +26,7 @@ struct GLVertexArray {
 	~GLVertexArray() { if (array != 0) glDeleteVertexArrays(1, &array); }
 	GLVertexArray(GLVertexArray const &) = delete;
 	GLVertexArray(GLVertexArray &&from) { std::swap(array, from.array); }
+	GLVertexArray &operator=(GLVertexArray &&from) { std::swap(array, from.array); return *this; }
 
 
 	//"make_binding" creates a vertex array to bind attributes for a particular program:
@@ -49,7 +51,16 @@ struct GLVertexArray {
 					throw std::runtime_error("Trying to bind undefined pointer to active attribute.");
 				}
 				glBindBuffer(GL_ARRAY_BUFFER, lp.second.buffer);
-				glVertexAttribPointer(lp.first, lp.second.size, lp.second.type, lp.second.normalized, lp.second.stride, (GLbyte *)0 + lp.second.offset);
+				if (lp.second.interpretation == KIT_AS_INTEGER) {
+					glVertexAttribIPointer(lp.first, lp.second.size, lp.second.type, lp.second.stride, (GLbyte *)0 + lp.second.offset);
+				} else if (lp.second.interpretation == KIT_AS_DOUBLE) {
+					throw std::runtime_error("Error: doesn't currently support doubles\n");
+					//glVertexAttribLPointer(lp.first, lp.second.size, lp.second.type, lp.second.stride, (GLbyte *)0 + lp.second.offset);
+				} else {
+					glVertexAttribPointer(lp.first, lp.second.size, lp.second.type,
+						(lp.second.interpretation == KIT_NORMALIZED_AS_FLOAT ? GL_TRUE : GL_FALSE),
+						lp.second.stride, (GLbyte *)0 + lp.second.offset);
+				}
 				glEnableVertexAttribArray(lp.first);
 				glBindBuffer(GL_ARRAY_BUFFER, 0);
 			}
@@ -72,7 +83,7 @@ struct GLVertexArray {
 				std::cerr << "ERROR: attribute '" << name << "' [" << idx << "] was not bound." << std::endl;
 				unbound = true;
 			} else {
-				std::cerr << "INFO: attribute '" << name << "' was bound." << std::endl; //DEBUG
+				//std::cerr << "INFO: attribute '" << name << "' was bound." << std::endl; //DEBUG
 			}
 		}
 		if (unbound) throw std::runtime_error("Incomplete binding.");

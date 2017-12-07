@@ -18,6 +18,125 @@
 #include "../shared/person.h"
 #include "Sounds.h"
 
+/* ANIMATION CODE HERE */
+#include "BoneAnimation.hpp"
+#define BONE_LIMIT 40
+#define STR2( X ) #X
+#define STR( X ) STR2( X )
+
+GLint animation_program_Position = -1;
+GLint animation_program_Normal = -1;
+GLint animation_program_Color = -1;
+GLint animation_program_TexCoord = -1;
+GLint animation_program_BoneWeights = -1;
+GLint animation_program_BoneIndices = -1;
+GLint animation_program_mvp = -1;
+GLint animation_program_bones = -1;
+
+GLint animation_program_mv = -1;
+GLint animation_program_itmv = -1;
+GLint animation_program_index = -1;
+GLint animation_program_people_colors = -1;
+
+//animation program
+Load< GLProgram > animation_program(LoadTagInit, []() -> GLProgram const *{
+	printf("reading animation program\n");
+	GLProgram *ret = new GLProgram(
+		"#version 330 \n"
+		"uniform mat4 mvp;\n"// model positions to clip space
+		"uniform mat4x3 mv;\n"// model positions to lighting space
+		"uniform mat3 itmv;\n"// model normals to lighting space
+		"uniform int index;\n"// person class idx
+		"uniform vec3 people_colors[" STR(NUM_PLAYER_CLASSES) "];\n"
+		"uniform mat4x3 bones[" STR(BONE_LIMIT) "];\n"
+		"in vec4 Position;\n"
+		"in vec3 Normal;\n"
+		"in vec3 Color;\n"
+		"in vec2 TexCoord;\n"
+		"in vec4 BoneWeights;\n"
+		"in uvec4 BoneIndices;\n"
+		"out vec3 normal;\n"
+		"out vec3 color;\n"
+		"out vec3 position;\n"
+		"void main() {\n"
+		"	vec3 skinned =\n" 
+		"		  BoneWeights.x * ( bones[ BoneIndices.x ] * Position)\n"
+		"		+ BoneWeights.y * ( bones[ BoneIndices.y ] * Position)\n"
+		"		+ BoneWeights.z * ( bones[ BoneIndices.z ] * Position)\n"
+		"		+ BoneWeights.w * ( bones[ BoneIndices.w ] * Position);\n"
+		"	vec3 skinned_normal = \n"
+		"		inverse(transpose(BoneWeights.x * mat3(bones[ BoneIndices.x ])\n"
+		"		                + BoneWeights.y * mat3(bones[ BoneIndices.y ])\n"
+		"		                + BoneWeights.z * mat3(bones[ BoneIndices.z ])\n"
+		"		                + BoneWeights.w * mat3(bones[ BoneIndices.w ]))) * Normal;\n"
+		"	gl_Position = mvp * vec4(skinned, 1.0);\n"
+		"	normal = itmv*skinned_normal;\n"
+		"	position = mv * vec4(skinned, 1.0);\n"
+		"	color = people_colors[index];\n"
+		"}\n"
+		,
+		"#version 330 \n"
+		"in vec3 color;\n"
+		"in vec3 normal;\n"
+		"in vec3 position;\n"
+		"out vec4 fragColor;\n"
+		"void main() {\n"
+		"	float shininess = 1.0;\n" //No roughness psh
+		"	vec3 n = normalize(normal);\n"
+		"	vec3 l = vec3(0.0, 0.0, 1.0);\n"
+		"	l = normalize(mix(l, n, 0.2));\n"// fake hemisphere light w/ normal bending
+		"	vec3 h = normalize(n+l);\n"
+		"	vec3 reflectance = \n" 
+		"		color.rgb\n"// Lambertain Diffuse
+		"		+ pow(max(0.0, dot(n, h)), shininess)\n"// Blinn-Phong Specular
+		"		* (shininess + 2.0) / (8.0)\n"// normalization factor (tweaked for hemisphere)
+		"		* (0.04 + (1.0 - 0.04) * pow(1.0 - dot(l,h), 5.0));\n"// Schlick's approximation for Fresnel reflectance
+		"	vec3 lightEnergy = vec3(1.0);\n"
+		"	fragColor = vec4(max(dot(n,l),0.0) * lightEnergy * reflectance, 1.0);\n"
+		"}\n"
+	);
+	animation_program_Position    = (*ret)("Position");
+	animation_program_Normal      = ret->getAttribLocation("Normal", GLProgram::MissingIsWarning);
+	animation_program_Color       = ret->getAttribLocation("Color", GLProgram::MissingIsWarning);
+	animation_program_TexCoord    = ret->getAttribLocation("TexCoord", GLProgram::MissingIsWarning);
+	animation_program_BoneWeights = ret->getAttribLocation("BoneWeights", GLProgram::MissingIsWarning);
+	animation_program_BoneIndices = ret->getAttribLocation("BoneIndices", GLProgram::MissingIsWarning);
+
+	animation_program_mvp           = (*ret)["mvp"];
+	animation_program_bones         = ret->getUniformLocation("bones[0]", GLProgram::MissingIsWarning);
+	animation_program_mv            = ret->getUniformLocation("mv",GLProgram::MissingIsWarning);
+	animation_program_itmv          = ret->getUniformLocation("itmv",GLProgram::MissingIsWarning);
+	animation_program_index         = ret->getUniformLocation("index",GLProgram::MissingIsWarning);
+	animation_program_people_colors = ret->getUniformLocation("people_colors[0]",GLProgram::MissingIsWarning);
+
+	printf("end read\n");
+	return ret;
+});
+Load<BoneAnimation> animation(LoadTagInit, [](){
+	BoneAnimation* ret = new BoneAnimation("human.blob");
+	assert(ret->bones.size() < BONE_LIMIT);
+	printf("found %d bones\n",(int)ret->bones.size());
+	std::cout << "Animations has " << ret->frame_bones.size() / ret->bones.size() << " frames and " << ret->vertex_count << " vertices." << std::endl;
+	return ret;
+});
+//Binding for using animation_program on animation:
+Load< GLVertexArray > animation_binding(LoadTagDefault, [](){
+	printf("binding vars...\n");
+	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(animation_program->program, {
+		{animation_program_Position, animation->Position},
+		{animation_program_Normal, animation->Normal},
+		{animation_program_Color, animation->Color},
+		{animation_program_TexCoord, animation->TexCoord},
+		{animation_program_BoneWeights, animation->BoneWeights},
+		{animation_program_BoneIndices, animation->BoneIndices}
+	}));
+	printf("binding complete\n");
+	return ret;
+});
+
+/* END ANIMATION CODE */
+
+
 extern Load<MeshBuffer> menuMeshes;
 extern Load<GLProgram> menuProgram;
 extern Load<GLVertexArray> menuBinding;
@@ -58,7 +177,7 @@ std::vector<std::string> random_testimonies = {
 		"ON THE ROAD",		"WITH A HAT",			 "NEAR THE STORE",	"WITH BLOND HAIR", "WITH GLASSES"};
 
 void spawnCop() {
-	cop.scale = 0.018f * glm::vec3(1, 1, 1);
+	cop.scale = 0.18f * glm::vec3(1, 1, 1);
 	cop.pos = glm::vec3(-1.0f, 5.5f, 0.0f);
 	cop.isMoving = true;
 }
@@ -85,7 +204,7 @@ Load<GLProgram> game_program(LoadTagInit, []() {
 			"uniform mat4x3 mv;\n"	// model positions to lighting space
 			"uniform mat3 itmv;\n"	// model normals to lighting space
 			"uniform int index;\n"	// person class idx
-			"uniform vec3 people_colors[" NUM_PLAYER_CLASSES_STR
+			"uniform vec3 people_colors[" STR(NUM_PLAYER_CLASSES)
 			"];\n"
 			"in vec4 Position;\n"
 			"in vec3 Normal;\n"
@@ -203,7 +322,7 @@ void searchSomeone() {
 	double calcdistance = pow(distancex + distancey, 0.5f);
 
 	if (calcdistance < 0.3f) {
-		player.scale = 0.016f * glm::vec3(1, 1, 1);
+		player.scale = 0.16f * glm::vec3(1, 1, 1);
 		std::cout << "Thief Found" << std::endl;
 	} else {
 		std::cout << "Thief NOT Found. Cops lose!" << std::endl;
@@ -303,7 +422,7 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 			cur = makeAI();
 		}
 
-		cur->rot = glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0));
+		cur->rot = glm::quat();//glm::angleAxis(glm::radians(90.f), glm::vec3(0, 0, 1));
 		cur->placeInScene((i >= numPlayers - 1) ? NULL : &Data::collisionFramework);
 	}
 }
@@ -372,6 +491,9 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		static constexpr int altLeft = SDL_SCANCODE_LEFT;
 		static constexpr int altRight = SDL_SCANCODE_RIGHT;
 		static constexpr int altAction = SDL_SCANCODE_RSHIFT;
+
+		if (e.key.keysym.sym == SDLK_TAB) camera.radius++;
+		else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
 
 		if (!staging->settings.localMultiplayer) {
 			switch (e.key.keysym.scancode) {
@@ -467,12 +589,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		//        int winX =  (((point2d.x + 1) * 320) - 0.5f);
 		//        int winY =  (((point2d.y - 1) * -200) - 0.5f);
 		//        std::cout << winX << " " << winY << "\n";
-	} else if (e.type == SDL_KEYDOWN) {
-		if (e.key.keysym.sym == SDLK_TAB)
-			camera.radius++;
-		// else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
-		else if (e.key.keysym.sym == SDLK_LSHIFT)
-			std::cout << camera.elevation << " " << camera.azimuth << "\n";
 	}
 
 	return false;
@@ -648,7 +764,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	static bool colorsNotInit = true;
 
-	static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
+	//static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 
 	static auto make_local_to_parent = [](glm::vec3 position, glm::quat rotation, glm::vec3 scale) {
 		return glm::mat4(	// translate
@@ -676,9 +792,13 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			(void)mv;
 		}
 
-		glUseProgram(game_program->program);
-		glUniform3fv(game_program_people_colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
-		glBindVertexArray(binding->array);
+		//animation setup
+		std::vector< glm::mat4x3 > bone_to_world(animation->bones.size()); //needed for hierarchy
+		std::vector< glm::mat4x3 > bind_to_world(animation->bones.size()); //actual uniforms
+		//auto const &anim = animation->lookup("walking"); //only one animation currently
+
+		glUseProgram(animation_program->program);
+		glUniform3fv(animation_program_people_colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
 		for (unsigned int i = 0; i <= Person::people.size(); i++) {
 			Person* person;
 			if (i == Person::people.size())
@@ -688,8 +808,9 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			else
 				person = Person::people[i];
 
+			person->pos += glm::vec3(0,0,1);
 			glm::mat4 local_to_world = make_local_to_parent(person->pos, person->rot, person->scale);
-
+			person->pos -= glm::vec3(0,0,1);
 			// compute modelview+projection (object space to clip space) matrix for this object:
 			glm::mat4 mvp = world_to_clip * local_to_world;
 
@@ -700,13 +821,35 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			glm::mat3 itmv = glm::inverse(glm::transpose(glm::mat3(mv)));
 
 			// set up program uniforms:
-			glUniformMatrix4fv(game_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-			glUniformMatrix4x3fv(game_program_mv, 1, GL_FALSE, glm::value_ptr(mv));
-			glUniformMatrix3fv(game_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
-			glUniform1i(game_program_index, person->playerClass);
-			glUniform1f(game_program_roughness, 1.0f);
+			glUniformMatrix4fv(animation_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
+			glUniformMatrix4x3fv(animation_program_mv, 1, GL_FALSE, glm::value_ptr(mv));
+			glUniformMatrix3fv(animation_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
+			glUniform1i(animation_program_index, person->playerClass);
 
-			glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
+			//Animation Stuff
+			BoneAnimation::PoseBone const *frame = animation->get_frame(person->animationFrameIdx);
+			for (uint32_t b = 0; b < animation->bones.size(); ++b) {
+				BoneAnimation::PoseBone const &pose_bone = frame[b];
+				BoneAnimation::Bone const &bone = animation->bones[b];
+
+				glm::mat3 r = glm::mat3_cast(pose_bone.rotation);
+				glm::mat3 rs = glm::mat3(
+					r[0] * pose_bone.scale.x,
+					r[1] * pose_bone.scale.y,
+					r[2] * pose_bone.scale.z
+				);
+				glm::mat4x3 trs = glm::mat4x3(
+					rs[0], rs[1], rs[2], pose_bone.position
+				);
+				if (bone.parent == -1U) bone_to_world[b] = trs;
+				else bone_to_world[b] = bone_to_world[bone.parent] * glm::mat4(trs);
+				bind_to_world[b] = bone_to_world[b]*glm::mat4(bone.inverse_bind_matrix);
+			}
+			glUniformMatrix4x3fv(animation_program_bones, bind_to_world.size(), GL_FALSE, glm::value_ptr(bind_to_world[0]));
+
+			glBindVertexArray(animation_binding->array);
+
+			glDrawArrays(GL_TRIANGLES, 0, animation->vertex_count);
 		}
 	};
 	renderAll(scene.lights, player, cop);
