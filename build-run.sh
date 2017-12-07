@@ -24,7 +24,7 @@ if build_client && [ $success -eq 0 ] && build_server && [ $success -eq 0 ] ; th
 
   if [ "$1" == "menu" ] ; then
     cd dist
-    ./client menu
+    ./client localhost 9001 300 menu
   elif [ -z ${1+x} ] ; then # if $1 is not set
     printf "Starting two clients (one cop, one robber), and a server...\n\n"
 

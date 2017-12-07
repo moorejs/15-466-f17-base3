@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+extern std::function<void(const std::string&, float, float, float)> drawWord;
+
 struct GameSettings {
 	float POWER_TIMEOUT = 15.0f;
 
@@ -59,10 +61,8 @@ struct StagingMode : public Mode {
 	};
 	std::unique_ptr<StagingState> state;
 
-	Button robberBtn;
-	Button copBtn;
-	Button startBtn;
-	std::vector<Button*> buttons;
+	Button* startBtn;
+	ButtonGroup btns;
 
 	std::function<void(Socket*, std::unique_ptr<StagingState>)> enterGame;
 	std::function<void()> showMenu;

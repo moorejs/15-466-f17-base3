@@ -161,9 +161,11 @@ Uint32 snapshot_reset_delay = 4000;
 Person player;
 Person cop;
 
+extern std::function<void(const std::string&, float, float, float)> drawWord;
+
 std::string endGameTxt = "";
 
-bool gameResultPosted;
+bool gameResultPosted = false;
 
 bool gameEnded = false;
 
@@ -315,17 +317,24 @@ void robSomeone() {
 }
 
 void searchSomeone() {
+	static int attempts = 0;
 	float distancex = pow(cop.pos.x - player.pos.x, 2.0f);
 	float distancey = pow(cop.pos.y - player.pos.y, 2.0f);
 
 	double calcdistance = pow(distancex + distancey, 0.5f);
 
+	endGameTxt = "ROBBER WINS";
 	if (calcdistance < 0.3f) {
+		if (attempts == 0) {
+			endGameTxt = "COPS WIN";
+		}
 		player.scale = 0.16f * glm::vec3(1, 1, 1);
 		std::cout << "Thief Found" << std::endl;
 	} else {
 		std::cout << "Thief NOT Found. Cops lose!" << std::endl;
 	}
+	gameResultPosted = true;
+	attempts++;
 }
 
 GameMode::GameMode() {
@@ -383,7 +392,7 @@ GameMode::GameMode() {
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ROADBLOCK})); };
 
 	// make this on a row of it's own or something
-	btn = copButtons.add("deploy", color);
+	btn = copButtons.add("DEPLOY", color);
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::DEPLOY})); };
 
@@ -932,8 +941,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	}
 
 	if (isTestimonyShowing) {
-		draw_word("ANONYMOUS TIP", 0, 0);
-		draw_word("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -0.5);
+		drawWord("ANONYMOUS TIP", 0, 0, 1.0f);
+		drawWord("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -0.5, 1.0f);
 	}
 
 	time_t curtime;
@@ -965,14 +974,14 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		if (staging->player == staging->robber) {
 			// robber only views
 		} else {
-			copButtons.draw();
+			copButtons.draw(0.5f);
 		}
 	} else {
-		copButtons.draw();
+		copButtons.draw(0.5f);
 	}
 
 	if (gameResultPosted) {
-		draw_word(endGameTxt, 0, 0);
+		drawWord(endGameTxt, 0, 0, 1.0f);
 	}
 
 	scene.camera.aspect = drawable_size.x / float(drawable_size.y);

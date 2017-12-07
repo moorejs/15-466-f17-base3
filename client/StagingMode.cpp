@@ -20,7 +20,7 @@
 
 Load<MeshBuffer> staging_meshes(LoadTagInit, []() { return new MeshBuffer("menu.p"); });
 
-extern Load<MeshBuffer> menu_meshes;
+extern Load<MeshBuffer> menuMeshes;
 
 // Attrib locations in staging_program:
 GLint staging_program_Position = -1;
@@ -72,38 +72,28 @@ StagingMode::StagingMode() {
 
 	glm::vec3 btnColor = glm::vec3(0.75f, 0.0f, 0.0f);
 
-	copBtn.color = btnColor;
-	copBtn.pos = glm::vec2(-0.5f, 0.65f);
-	copBtn.rad = glm::vec2(0.4f, 0.1f);
-	copBtn.label = "COP";
-
-	copBtn.isEnabled = [&]() {
+	Button* btn;
+	btn = btns.add("COP", btnColor);
+	btn->isEnabled = [&]() {
 		return !state->starting && state->player && state->player->role != StagingState::Role::COP;
 	};
-	copBtn.onFire = [&]() {
+	btn->onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::COP}));
 
 		// just accept latency.. state->players[state->playerId].role = StagingState::Role::COP;
 	};
 
-	robberBtn.color = btnColor;
-	robberBtn.pos = glm::vec2(0.5f, 0.65f);
-	robberBtn.rad = glm::vec2(0.4f, 0.1f);
-	robberBtn.label = "ROBBER";
-
-	robberBtn.isEnabled = [&]() { return !state->starting && state->player && !state->robber; };
-	robberBtn.onFire = [&]() {
+	btn = btns.add("ROBBER", btnColor);
+	btn->isEnabled = [&]() { return !state->starting && state->player && !state->robber; };
+	btn->onFire = [&]() {
 		sock->writeQueue.enqueue(Packet::pack(MessageType::STAGING_ROLE_CHANGE, {StagingState::Role::ROBBER}));
 
 		// accepting latency for now.. state->players[state->playerId].role = StagingState::Role::ROBBER;
 	};
 
-	startBtn.color = btnColor;
-	startBtn.pos = glm::vec2(0.0f, -0.35f);
-	startBtn.rad = glm::vec2(0.75f, 0.1f);
-	startBtn.label = "START GAME";
-	startBtn.isEnabled = [&]() { return state->players.size() >= 2 && state->undecided == 0 && state->robber; };
-	startBtn.onFire = [&]() {
+	startBtn = btns.add("START GAME", btnColor);
+	startBtn->isEnabled = [&]() { return state->players.size() >= 2 && state->undecided == 0 && state->robber; };
+	startBtn->onFire = [&]() {
 		Packet* out;
 		if (state->starting) {
 			out = Packet::pack(MessageType::STAGING_VETO_START);
@@ -114,9 +104,7 @@ StagingMode::StagingMode() {
 		sock->writeQueue.enqueue(out);
 	};
 
-	buttons.emplace_back(&robberBtn);
-	buttons.emplace_back(&copBtn);
-	buttons.emplace_back(&startBtn);
+	btns.layoutVertical(0.092f, 0.6f);
 
 	state = std::make_unique<StagingState>();
 }
@@ -149,23 +137,23 @@ bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_
 		mouse.x = (event.motion.x + 0.5f) / window_size.x * 2.0f - 1.0f;
 		mouse.y = (event.motion.y + 0.5f) / window_size.y * -2.0f + 1.0f;
 
-		for (Button* button : buttons) {
-			button->hover = button->contains(mouse);
-		}
+		btns.checkMouseHover(mouse.x, mouse.y);
 	}
 
 	if (event.type == SDL_MOUSEBUTTONDOWN) {
-		for (const Button* button : buttons) {
-			if (button->hover && button->isEnabled()) {
-				DEBUG_PRINT("Clicked on " << button->label);
-				button->onFire();
-				return true;
-			}
-		}
+		btns.onClick();
 	}
 
-	if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) {
-		showMenu();
+	if (event.type == SDL_KEYDOWN) {
+		if (event.key.keysym.sym == SDLK_LSHIFT || event.key.keysym.sym == SDLK_RSHIFT) {
+			btns.onKey();
+		} else if (event.key.keysym.sym == SDLK_a || event.key.keysym.sym == SDLK_w || event.key.keysym.sym == SDLK_UP ||
+							 event.key.keysym.sym == SDLK_LEFT) {
+			btns.onPrev();
+		} else if (event.key.keysym.sym == SDLK_d || event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_s ||
+							 event.key.keysym.sym == SDLK_DOWN) {
+			btns.onNext();
+		}
 		return true;
 	}
 
@@ -303,7 +291,7 @@ void StagingMode::update(float elapsed) {
 				std::cout << "Player " << state->players[msg->id]->name << " voted to start the game." << std::endl;
 				state->starting = true;
 
-				startBtn.label = "VETO START";
+				startBtn->label = "VETO START";
 
 				break;
 			}
@@ -313,7 +301,7 @@ void StagingMode::update(float elapsed) {
 				std::cout << "Player " << state->players[msg->id]->name << " vetoed the game startBtn." << std::endl;
 				state->starting = false;
 
-				startBtn.label = "START GAME";
+				startBtn->label = "START GAME";
 
 				break;
 			}
@@ -343,108 +331,29 @@ void StagingMode::update(float elapsed) {
 	}
 }
 void StagingMode::draw(glm::uvec2 const& drawable_size) {
-	float aspect = drawable_size.x / float(drawable_size.y);
-	// scale factors such that a rectangle of aspect 'aspect' and height '1.0' fills the window:
-	glm::vec2 scale = glm::vec2(1.0f / aspect, 1.0f);
-	glm::mat4 projection = glm::mat4(glm::vec4(scale.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, scale.y, 0.0f, 0.0f),
-																	 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-	glUseProgram(staging_program->program);
-	glBindVertexArray(staging_binding->array);
-
-	static const MeshBuffer::Mesh& buttonMesh = staging_meshes->lookup("Button");
-	static auto draw_button = [&](const Button& button) {
-		// note that buttons scale with aspect ratio, projection matrix not applied
-		glm::mat4 mvp = glm::mat4(glm::vec4(button.rad.x, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, button.rad.y, 0.0f, 0.0f),
-															glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-															glm::vec4(button.pos.x, button.pos.y, -0.05f, 1.0f)	// z is back to show text
-		);
-
-		glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-
-		glm::vec3 color = button.color;
-		if (button.hover) {
-			color *= 1.25f;
-		}
-		if (!button.isEnabled()) {
-			color *= 0.1f;
-		}
-		glUniform3f(staging_program_color, color.x, color.y, color.z);
-
-		glDrawArrays(GL_TRIANGLES, buttonMesh.start, buttonMesh.count);
-	};
-
-	// TODO: could cache parts of this?
-	// I just hacked on x centering, it's not good but I couldn't figure out the scaling
-	static auto draw_word = [&projection](const std::string& word, float x, float y) {
-		auto width = [](char a) {
-			if (a == 'I')
-				return 1.0f;
-			else if (a == 'L')
-				return 2.0f;
-			else if (a == 'M' || a == 'W')
-				return 4.0f;
-			else
-				return 3.0f;
-		};
-		auto spacing = [](char a, char b) { return 1.0f; };
-
-		float total_width = 0.0f;
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0)
-				total_width += spacing(word[i - 1], word[i]);
-			total_width += width(word[i]);
-		}
-
-		static const float height = 1.0f;
-		y += -0.5f * 0.1 * height;									// center y
-		x += -0.5f * total_width * 0.1f * 0.3333f;	// center x
-		for (uint32_t i = 0; i < word.size(); ++i) {
-			if (i > 0) {
-				x += spacing(word[i], word[i - 1]) * 0.1f * 0.3333f;
-			}
-
-			if (word[i] != ' ') {
-				float s = 0.1f * (1.0f / 3.0f);
-				glm::mat4 mvp = glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
-																	glm::vec4(0.0f, 0.0f, 1.0f, 0.0f), glm::vec4(x, y, 0.0f, 1.0f));
-				glUniformMatrix4fv(staging_program_mvp, 1, GL_FALSE, glm::value_ptr(mvp));
-				glUniform3f(staging_program_color, 1.0f, 1.0f, 1.0f);
-
-				MeshBuffer::Mesh const& mesh = menuMeshes->lookup(word.substr(i, 1));
-				glDrawArrays(GL_TRIANGLES, mesh.start, mesh.count);
-			}
-
-			x += width(word[i]) * 0.1f * 0.3333f;
-		}
-	};
-
 	// TODO: message queue with timeouts, relatively simple?
 	if (!sock || !state->player) {
-		draw_word("NOT CONNECTED", 0.0f, -0.92f);
+		drawWord("NOT CONNECTED", 0.0f, -0.92f, 1.0f);
 	} else {
-		draw_word("CONNECTED", 0.0f, -0.92f);
+		drawWord("CONNECTED", 0.0f, -0.92f, 1.0f);
 
 		switch (state->player->role) {
 			case StagingState::Role::ROBBER: {
-				draw_word("ROBBER SELECTED", 0.0f, 0.88f);
+				drawWord("ROBBER SELECTED", 0.0f, 0.88f, 1.0f);
 				break;
 			}
 
 			case StagingState::Role::COP: {
-				draw_word("COP SELECTED", 0.0f, 0.88f);
+				drawWord("COP SELECTED", 0.0f, 0.88f, 1.0f);
 				break;
 			}
 
 			case StagingState::Role::NONE: {
-				draw_word("SELECT A ROLE", 0.0f, 0.88f);
+				drawWord("SELECT A ROLE", 0.0f, 0.88f, 1.0f);
 				break;
 			}
 		}
 
-		for (const Button* button : buttons) {
-			draw_button(*button);
-			draw_word(button->label, button->pos.x, button->pos.y);
-		};
+		btns.draw();
 	}
 }
