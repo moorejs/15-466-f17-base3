@@ -21,7 +21,7 @@ function build_server {
 
 if build_client && [ $success -eq 0 ] && build_server && [ $success -eq 0 ] ; then
   printf "\nBuilt successfully\n\n"
-  
+
   if [ "$1" == "menu" ] ; then
     cd dist
     ./client menu

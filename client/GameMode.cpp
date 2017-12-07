@@ -615,12 +615,6 @@ void GameMode::update(float elapsed) {
 	}
 	Person::moveAll(elapsed, &Data::collisionFramework);
 
-	time_t curtime;
-	time(&curtime);
-	if (!gameEnded && difftime(curtime, game_start_time) > game_duration) {
-		endGame();
-	}
-
 	if (!sock) {
 		return;
 	}
