@@ -21,8 +21,8 @@
 /* ANIMATION CODE HERE */
 #include "BoneAnimation.hpp"
 #define BONE_LIMIT 40
-#define STR2( X ) #X
-#define STR( X ) STR2( X )
+#define STR2(X) #X
+#define STR(X) STR2(X)
 
 GLint animation_program_Position = -1;
 GLint animation_program_Normal = -1;
@@ -38,8 +38,8 @@ GLint animation_program_itmv = -1;
 GLint animation_program_index = -1;
 GLint animation_program_people_colors = -1;
 
-//animation program
-Load< GLProgram > animation_program(LoadTagInit, []() -> GLProgram const *{
+// animation program
+Load<GLProgram> animation_program(LoadTagInit, []() -> GLProgram const* {
 	printf("reading animation program\n");
 	GLProgram *ret = new GLProgram(
 		"#version 330 \n"
@@ -95,47 +95,46 @@ Load< GLProgram > animation_program(LoadTagInit, []() -> GLProgram const *{
 		"	fragColor = vec4(max(dot(n,l),0.0) * lightEnergy * reflectance, 1.0);\n"
 		"}\n"
 	);
-	animation_program_Position    = (*ret)("Position");
-	animation_program_Normal      = ret->getAttribLocation("Normal", GLProgram::MissingIsWarning);
-	animation_program_Color       = ret->getAttribLocation("Color", GLProgram::MissingIsWarning);
-	animation_program_TexCoord    = ret->getAttribLocation("TexCoord", GLProgram::MissingIsWarning);
+	animation_program_Position = (*ret)("Position");
+	animation_program_Normal = ret->getAttribLocation("Normal", GLProgram::MissingIsWarning);
+	animation_program_Color = ret->getAttribLocation("Color", GLProgram::MissingIsWarning);
+	animation_program_TexCoord = ret->getAttribLocation("TexCoord", GLProgram::MissingIsWarning);
 	animation_program_BoneWeights = ret->getAttribLocation("BoneWeights", GLProgram::MissingIsWarning);
 	animation_program_BoneIndices = ret->getAttribLocation("BoneIndices", GLProgram::MissingIsWarning);
 
-	animation_program_mvp           = (*ret)["mvp"];
-	animation_program_bones         = ret->getUniformLocation("bones[0]", GLProgram::MissingIsWarning);
-	animation_program_mv            = ret->getUniformLocation("mv",GLProgram::MissingIsWarning);
-	animation_program_itmv          = ret->getUniformLocation("itmv",GLProgram::MissingIsWarning);
-	animation_program_index         = ret->getUniformLocation("index",GLProgram::MissingIsWarning);
-	animation_program_people_colors = ret->getUniformLocation("people_colors[0]",GLProgram::MissingIsWarning);
+	animation_program_mvp = (*ret)["mvp"];
+	animation_program_bones = ret->getUniformLocation("bones[0]", GLProgram::MissingIsWarning);
+	animation_program_mv = ret->getUniformLocation("mv", GLProgram::MissingIsWarning);
+	animation_program_itmv = ret->getUniformLocation("itmv", GLProgram::MissingIsWarning);
+	animation_program_index = ret->getUniformLocation("index", GLProgram::MissingIsWarning);
+	animation_program_people_colors = ret->getUniformLocation("people_colors[0]", GLProgram::MissingIsWarning);
 
 	printf("end read\n");
 	return ret;
 });
-Load<BoneAnimation> animation(LoadTagInit, [](){
+Load<BoneAnimation> animation(LoadTagInit, []() {
 	BoneAnimation* ret = new BoneAnimation("human.blob");
 	assert(ret->bones.size() < BONE_LIMIT);
-	printf("found %d bones\n",(int)ret->bones.size());
-	std::cout << "Animations has " << ret->frame_bones.size() / ret->bones.size() << " frames and " << ret->vertex_count << " vertices." << std::endl;
+	printf("found %d bones\n", (int)ret->bones.size());
+	std::cout << "Animations has " << ret->frame_bones.size() / ret->bones.size() << " frames and " << ret->vertex_count
+						<< " vertices." << std::endl;
 	return ret;
 });
-//Binding for using animation_program on animation:
-Load< GLVertexArray > animation_binding(LoadTagDefault, [](){
+// Binding for using animation_program on animation:
+Load<GLVertexArray> animation_binding(LoadTagDefault, []() {
 	printf("binding vars...\n");
-	GLVertexArray *ret = new GLVertexArray(GLVertexArray::make_binding(animation_program->program, {
-		{animation_program_Position, animation->Position},
-		{animation_program_Normal, animation->Normal},
-		{animation_program_Color, animation->Color},
-		{animation_program_TexCoord, animation->TexCoord},
-		{animation_program_BoneWeights, animation->BoneWeights},
-		{animation_program_BoneIndices, animation->BoneIndices}
-	}));
+	GLVertexArray* ret = new GLVertexArray(GLVertexArray::make_binding(
+			animation_program->program, {{animation_program_Position, animation->Position},
+																	 {animation_program_Normal, animation->Normal},
+																	 {animation_program_Color, animation->Color},
+																	 {animation_program_TexCoord, animation->TexCoord},
+																	 {animation_program_BoneWeights, animation->BoneWeights},
+																	 {animation_program_BoneIndices, animation->BoneIndices}}));
 	printf("binding complete\n");
 	return ret;
 });
 
 /* END ANIMATION CODE */
-
 
 extern Load<MeshBuffer> menuMeshes;
 extern Load<GLProgram> menuProgram;
@@ -393,20 +392,21 @@ GameMode::GameMode() {
 
 // https://www.bensound.com/royalty-free-music/track/summer
 Sound bgmusic;
+
+extern unsigned crowdSize;
 void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 	staging = std::move(stagingState);
 
 	twister.seed(staging->settings.seed);
 	// bgmusic = Sound("../sounds/bensound-summer.wav", true);
 	// bgmusic.play();
-	int numPlayers = 250;
 
 	std::cout << "first random values" << rand() << " " << rand() << " " << rand() << std::endl;
 
 	Person::random = rand;
-	for (int i = 0; i <= numPlayers; i++) {
+	for (int i = 0; i <= crowdSize; i++) {
 		Person* cur;
-		if (i == numPlayers) {
+		if (i == crowdSize) {
 			player = Person();
 			cur = &player;
 
@@ -414,7 +414,7 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 				player.scale *= 1.5f;
 			}
 
-		} else if (i == numPlayers - 1) {
+		} else if (i == crowdSize - 1) {
 			cop = Person();
 			cur = &cop;
 			cur->scale *= 0.0f;
@@ -422,8 +422,8 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 			cur = makeAI();
 		}
 
-		cur->rot = glm::quat();//glm::angleAxis(glm::radians(90.f), glm::vec3(0, 0, 1));
-		cur->placeInScene((i >= numPlayers - 1) ? NULL : &Data::collisionFramework);
+		cur->rot = glm::quat();	// glm::angleAxis(glm::radians(90.f), glm::vec3(0, 0, 1));
+		cur->placeInScene((i >= crowdSize - 1) ? NULL : &Data::collisionFramework);
 	}
 }
 
@@ -492,8 +492,10 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		static constexpr int altRight = SDL_SCANCODE_RIGHT;
 		static constexpr int altAction = SDL_SCANCODE_RSHIFT;
 
-		if (e.key.keysym.sym == SDLK_TAB) camera.radius++;
-		else if(e.key.keysym.sym == SDLK_LSHIFT) camera.radius--;
+		if (e.key.keysym.sym == SDLK_TAB)
+			camera.radius++;
+		else if (e.key.keysym.sym == SDLK_LSHIFT)
+			camera.radius--;
 
 		if (!staging->settings.localMultiplayer) {
 			switch (e.key.keysym.scancode) {
@@ -612,12 +614,6 @@ void GameMode::update(float elapsed) {
 		cop.move(elapsed, &Data::collisionFramework);
 	}
 	Person::moveAll(elapsed, &Data::collisionFramework);
-
-	time_t curtime;
-	time(&curtime);
-	if (!gameEnded && difftime(curtime, game_start_time) > game_duration) {
-		endGame();
-	}
 
 	if (!sock) {
 		return;
@@ -764,7 +760,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	static bool colorsNotInit = true;
 
-	//static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
+	// static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 
 	static auto make_local_to_parent = [](glm::vec3 position, glm::quat rotation, glm::vec3 scale) {
 		return glm::mat4(	// translate
@@ -792,10 +788,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			(void)mv;
 		}
 
-		//animation setup
-		std::vector< glm::mat4x3 > bone_to_world(animation->bones.size()); //needed for hierarchy
-		std::vector< glm::mat4x3 > bind_to_world(animation->bones.size()); //actual uniforms
-		auto const &anim = animation->lookup("walking"); //only one animation currently
+		// animation setup
+		std::vector<glm::mat4x3> bone_to_world(animation->bones.size());	// needed for hierarchy
+		std::vector<glm::mat4x3> bind_to_world(animation->bones.size());	// actual uniforms
+		auto const& anim = animation->lookup("walking");									// only one animation currently
 
 		glUseProgram(animation_program->program);
 		glUniform3fv(animation_program_people_colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
@@ -808,9 +804,9 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			else
 				person = Person::people[i];
 
-			person->pos += glm::vec3(0,0,1);
+			person->pos += glm::vec3(0, 0, 1);
 			glm::mat4 local_to_world = make_local_to_parent(person->pos, person->rot, person->scale);
-			person->pos -= glm::vec3(0,0,1);
+			person->pos -= glm::vec3(0, 0, 1);
 			// compute modelview+projection (object space to clip space) matrix for this object:
 			glm::mat4 mvp = world_to_clip * local_to_world;
 
@@ -826,24 +822,20 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			glUniformMatrix3fv(animation_program_itmv, 1, GL_FALSE, glm::value_ptr(itmv));
 			glUniform1i(animation_program_index, person->playerClass);
 
-			//Animation Stuff
-			BoneAnimation::PoseBone const *frame = animation->get_frame(anim.begin + person->animationFrameIdx);
+			// Animation Stuff
+			BoneAnimation::PoseBone const* frame = animation->get_frame(anim.begin + person->animationFrameIdx);
 			for (uint32_t b = 0; b < animation->bones.size(); ++b) {
-				BoneAnimation::PoseBone const &pose_bone = frame[b];
-				BoneAnimation::Bone const &bone = animation->bones[b];
+				BoneAnimation::PoseBone const& pose_bone = frame[b];
+				BoneAnimation::Bone const& bone = animation->bones[b];
 
 				glm::mat3 r = glm::mat3_cast(pose_bone.rotation);
-				glm::mat3 rs = glm::mat3(
-					r[0] * pose_bone.scale.x,
-					r[1] * pose_bone.scale.y,
-					r[2] * pose_bone.scale.z
-				);
-				glm::mat4x3 trs = glm::mat4x3(
-					rs[0], rs[1], rs[2], pose_bone.position
-				);
-				if (bone.parent == -1U) bone_to_world[b] = trs;
-				else bone_to_world[b] = bone_to_world[bone.parent] * glm::mat4(trs);
-				bind_to_world[b] = bone_to_world[b]*glm::mat4(bone.inverse_bind_matrix);
+				glm::mat3 rs = glm::mat3(r[0] * pose_bone.scale.x, r[1] * pose_bone.scale.y, r[2] * pose_bone.scale.z);
+				glm::mat4x3 trs = glm::mat4x3(rs[0], rs[1], rs[2], pose_bone.position);
+				if (bone.parent == -1U)
+					bone_to_world[b] = trs;
+				else
+					bone_to_world[b] = bone_to_world[bone.parent] * glm::mat4(trs);
+				bind_to_world[b] = bone_to_world[b] * glm::mat4(bone.inverse_bind_matrix);
 			}
 			glUniformMatrix4x3fv(animation_program_bones, bind_to_world.size(), GL_FALSE, glm::value_ptr(bind_to_world[0]));
 

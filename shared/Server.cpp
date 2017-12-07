@@ -11,10 +11,12 @@ using moodycamel::ReaderWriterQueue;
 #define IF_DEBUG(x)
 #endif
 
+extern std::string port;
+
 Server::Server() {
 	DEBUG_PRINT("IN DEBUG MODE");
 
-	int sockfd = ClientSocket::initServer("3490");
+	int sockfd = ClientSocket::initServer(port);
 
 	struct Client {
 		uint8_t id;

@@ -121,6 +121,9 @@ StagingMode::StagingMode() {
 	state = std::make_unique<StagingState>();
 }
 
+extern std::string remoteAddress;
+extern std::string port;
+
 // Connect to server
 void StagingMode::reset(bool localMultiplayer) {
 	if (sock) {
@@ -136,7 +139,7 @@ void StagingMode::reset(bool localMultiplayer) {
 
 	state->settings.localMultiplayer = localMultiplayer;
 
-	sock = Socket::connect("localhost", "3490");
+	sock = Socket::connect(remoteAddress, port);
 }
 
 bool StagingMode::handle_event(SDL_Event const& event, glm::uvec2 const& window_size) {

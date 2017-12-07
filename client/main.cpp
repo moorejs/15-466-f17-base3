@@ -23,6 +23,10 @@
 #include "Sounds.h"
 #include "ui/Button.hpp"
 
+std::string remoteAddress;
+std::string port;
+unsigned crowdSize;
+
 int main(int argc, char** argv) {
 	// Sound::init(argc, argv);
 
@@ -34,6 +38,10 @@ int main(int argc, char** argv) {
 		int minWidth = 720 / 10;
 		int minHeight = 480 / 10;
 	} config;
+
+	remoteAddress = (argc > 1) ? argv[1] : "localhost";
+	port = (argc > 2) ? argv[2] : "3490";
+	crowdSize = (argc > 3) ? std::stoi(argv[3]) : 200;
 
 	//------------  initialization ------------
 
@@ -138,8 +146,8 @@ int main(int argc, char** argv) {
 		Mode::set_current(menu);
 	};
 
-	std::string startingMode = argc > 1 ? argv[1] : "";
-	std::string position = argc > 2 ? argv[2] : "";
+	std::string startingMode = argc > 4 ? argv[4] : "";
+	std::string position = argc > 5 ? argv[5] : "";
 
 	std::cout << "Starting mode: " << startingMode << std::endl;
 	if (startingMode == "staging") {

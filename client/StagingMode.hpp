@@ -16,7 +16,7 @@ struct GameSettings {
 	int seed;
 	bool localMultiplayer;
 
-	bool clientSidePrediction = false;
+	bool clientSidePrediction = true;
 };
 
 struct StagingMode : public Mode {

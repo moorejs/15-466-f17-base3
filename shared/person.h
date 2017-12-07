@@ -27,14 +27,16 @@ class Person {
 	static std::vector<Outfit*> outfits;
 	void changeOutfit();*/
 
-	int playerClass,animationFrameIdx;
+	int playerClass, animationFrameIdx;
 	bool humanControlled;
 	bool isMoving;
 	bool isVisible;
 	bool isAI;
-	time_t savedTime;
 	glm::vec3 pos, vel, scale;
 	glm::quat rot;
+
+	int movingFrames;
+	int directionFrames;
 
 	bool robbed;
 

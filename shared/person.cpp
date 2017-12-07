@@ -6,7 +6,7 @@
 #include <iostream>
 
 const glm::vec3 Person::BASE_SCALE = glm::vec3(0.12f);
-int Person::ANIMATION_FRAMES = 160; //animation->frame_bones.size() / animation->bones.size()
+int Person::ANIMATION_FRAMES = 160;	// animation->frame_bones.size() / animation->bones.size()
 
 std::vector<Person*> Person::people = std::vector<Person*>();
 glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3()};
@@ -18,7 +18,11 @@ glm::vec3 Person::randVel() {
 	// civilians need to match how player moves
 	float rand1 = int(3 * Person::random()) - 1;	// either -1,0,or 1
 	float rand2 = int(3 * Person::random()) - 1;	// either -1,0,or 1
-	time(&savedTime);
+
+	movingFrames = 0;
+	// between half second and 5 seconds
+	directionFrames = 30 + (int)(4.5f * 60.0f * Person::random());
+
 	return glm::normalize(glm::vec3(rand1, rand2, 0));
 }
 
@@ -43,7 +47,7 @@ void Person::placeInScene(Collision* col) {
 		} while (col->checkHit(glm::vec2(pos.x, pos.y)).hit);
 	}
 
-	playerClass = int(Person::random() * NUM_PLAYER_CLASSES); // give random player class
+	playerClass = int(Person::random() * NUM_PLAYER_CLASSES);	// give random player class
 }
 
 // set player velocity based on controls
@@ -73,21 +77,21 @@ void Person::move(float eps, Collision* col) {
 			animationFrameIdx = 0;
 		} else {
 			pos += vel * eps;
-			animationFrameIdx = (animationFrameIdx+2) % ANIMATION_FRAMES;
+			animationFrameIdx = (animationFrameIdx + 2) % ANIMATION_FRAMES;
 		}
 
 		if (glm::length(vel) > 0.1) {
 			float angle = atan2(vel.x, -vel.y);
-			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1))/* *
+			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) /* *
 													 glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0))*/);
 
 			if (isAI) {
-				time_t curtime;
-				time(&curtime);
-				if (difftime(curtime, savedTime) > 1 && Person::random() > 0.99)
+				if (movingFrames >= directionFrames) {
 					vel = randVel();
+				}
 			}
 		}
+		movingFrames++;
 	}
 }
 

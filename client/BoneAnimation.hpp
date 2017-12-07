@@ -2,6 +2,8 @@
 
 #include "GLBuffer.hpp"
 
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -28,18 +30,16 @@ struct BoneAnimation {
 		uint32_t parent = -1U;
 		glm::mat4x3 inverse_bind_matrix;
 	};
-	std::vector< Bone > bones;
+	std::vector<Bone> bones;
 
 	struct PoseBone {
 		glm::vec3 position;
 		glm::quat rotation;
 		glm::vec3 scale;
 	};
-	std::vector< PoseBone > frame_bones;
+	std::vector<PoseBone> frame_bones;
 
-	PoseBone const *get_frame(uint32_t frame) const {
-		return &frame_bones[frame * bones.size()];
-	}
+	PoseBone const* get_frame(uint32_t frame) const { return &frame_bones[frame * bones.size()]; }
 
 	struct Animation {
 		std::string name;
@@ -47,12 +47,12 @@ struct BoneAnimation {
 		uint32_t end = 0;
 	};
 
-	std::vector< Animation > animations;
+	std::vector<Animation> animations;
 
-	//look up a particular animation, will throw if not found:
-	const Animation &lookup(std::string const &name) const;
+	// look up a particular animation, will throw if not found:
+	const Animation& lookup(std::string const& name) const;
 
-	//construct from a file:
+	// construct from a file:
 	// note: will throw if file fails to read.
-	BoneAnimation(std::string const &filename);
+	BoneAnimation(std::string const& filename);
 };
