@@ -171,6 +171,45 @@ void snapShot(float x, float y, Scene* scene) {
 template <class callable, class... arguments>
 void later(int after, callable&& f, arguments&&... args);
 
+void robSomeone() {
+	Person* closestPerson = nullptr;
+	double minDistance = 1000;
+
+	for (auto& person : Person::people) {
+		float distancex = pow(person->pos.x - player.pos.x, 2.0f);
+		float distancey = pow(person->pos.y - player.pos.y, 2.0f);
+
+		double calcdistance = pow(distancex + distancey, 0.5f);
+
+		if (calcdistance < minDistance) {
+			closestPerson = person;
+			minDistance = calcdistance;
+		}
+	}
+
+	if (closestPerson && minDistance < 0.4f) {
+		closestPerson->rob();
+		later(2000, [closestPerson]() {
+			closestPerson->scale = Person::BASE_SCALE;
+			closestPerson->robbed = false;
+		});
+	}
+}
+
+void searchSomeone() {
+	float distancex = pow(cop.pos.x - player.pos.x, 2.0f);
+	float distancey = pow(cop.pos.y - player.pos.y, 2.0f);
+
+	double calcdistance = pow(distancex + distancey, 0.5f);
+
+	if (calcdistance < 0.3f) {
+		player.scale = 0.016f * glm::vec3(1, 1, 1);
+		std::cout << "Thief Found" << std::endl;
+	} else {
+		std::cout << "Thief NOT Found. Cops lose!" << std::endl;
+	}
+}
+
 GameMode::GameMode() {
 	sock = nullptr;
 
@@ -321,96 +360,71 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		static constexpr int down = SDL_SCANCODE_S;
 		static constexpr int left = SDL_SCANCODE_A;
 		static constexpr int right = SDL_SCANCODE_D;
+		static constexpr int action = SDL_SCANCODE_LSHIFT;
 
-		switch (e.key.keysym.scancode) {
-			case up:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::UP}));
-				break;
+		static constexpr int altUp = SDL_SCANCODE_UP;
+		static constexpr int altDown = SDL_SCANCODE_DOWN;
+		static constexpr int altLeft = SDL_SCANCODE_LEFT;
+		static constexpr int altRight = SDL_SCANCODE_RIGHT;
+		static constexpr int altAction = SDL_SCANCODE_RSHIFT;
 
-			case down:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::DOWN}));
-				break;
-
-			case left:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::LEFT}));
-				break;
-
-			case right:
-				sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::RIGHT}));
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	double minDistance = 1000;
-	auto* closestPerson = new Person;
-
-	if (e.type == SDL_KEYDOWN) {
-		switch (e.key.keysym.sym) {
-			case SDLK_LEFT:
-				copButtons.onPrev();
-				break;
-
-			case SDLK_RIGHT:
-				copButtons.onNext();
-				break;
-
-			case SDLK_RSHIFT:
-				copButtons.onKey();
-				break;
-
-			case SDLK_LSHIFT:
-
-				if (gameEnded) {
+		if (!staging->settings.localMultiplayer) {
+			switch (e.key.keysym.scancode) {
+				case up:
+				case altUp:
+					if (gameEnded || staging->player == staging->robber) {
+						sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::UP}));
+					}
 					break;
-				}
 
-				for (auto person : Person::people) {
-					float distancex = pow(person->pos.x - player.pos.x, 2.0f);
-					float distancey = pow(person->pos.y - player.pos.y, 2.0f);
-
-					double calcdistance = pow(distancex + distancey, 0.5f);
-
-					if (calcdistance < minDistance) {
-						closestPerson = &*person;
-						minDistance = calcdistance;
+				case down:
+				case altDown:
+					if (gameEnded || staging->player == staging->robber) {
+						sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::DOWN}));
 					}
-				}
+					break;
 
-				if (minDistance < 0.4f) {
-					closestPerson->rob();
-					later(2000, [closestPerson]() {
-						closestPerson->scale = Person::BASE_SCALE;
-						closestPerson->robbed = false;
-					});
-				}
-
-				break;
-
-			case SDLK_SPACE:
-				// Catch thief
-				if (gameEnded) {
-					float distancex = pow(cop.pos.x - player.pos.x, 2.0f);
-					float distancey = pow(cop.pos.y - player.pos.y, 2.0f);
-
-					double calcdistance = pow(distancex + distancey, 0.5f);
-
-					if (calcdistance < 0.3f) {
-						player.scale = 0.016f * glm::vec3(1, 1, 1);
-						std::cout << "Thief Found"
-											<< "\n";
+				case left:
+				case altLeft:
+					if (gameEnded || staging->player == staging->robber) {
+						sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::LEFT}));
 					} else {
-						std::cout << "Thief NOT Found. Cops lose!"
-											<< "\n";
+						if (!gameEnded && staging->player != staging->robber) {
+							copButtons.onPrev();
+						}
 					}
-				}
-				break;
-			default:
-				break;
+					break;
+
+				case right:
+				case altRight:
+					if (gameEnded || staging->player == staging->robber) {
+						sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::RIGHT}));
+					} else {
+						if (!gameEnded && staging->player != staging->robber) {
+							copButtons.onNext();
+						}
+					}
+					break;
+
+				case action:
+				case altAction:
+					if (gameEnded || staging->player == staging->robber) {
+						sock->writeQueue.enqueue(Packet::pack(MessageType::INPUT, {Control::ACTION}));
+					} else {
+						if (!gameEnded && staging->player != staging->robber) {
+							copButtons.onKey();
+						}
+					}
+					break;
+
+				default:
+					break;
+			}
+		} else {
+			// TODO: if local play, alt inputs are for cop, regular inputs are for robber.. always send
 		}
 	}
+
 	// temporary mouse movement for camera
 	else if (e.type == SDL_MOUSEMOTION) {
 		glm::vec2 old_mouse = mouse;
@@ -448,7 +462,6 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		//        int winX =  (((point2d.x + 1) * 320) - 0.5f);
 		//        int winY =  (((point2d.y - 1) * -200) - 0.5f);
 		//        std::cout << winX << " " << winY << "\n";
-
 	} else if (e.type == SDL_KEYDOWN) {
 		if (e.key.keysym.sym == SDLK_TAB)
 			camera.radius++;
@@ -553,6 +566,17 @@ void GameMode::update(float elapsed) {
 				// TODO: something special that says time is up
 
 				endGame();
+
+				break;
+			}
+
+			case MessageType::INPUT: {
+				// this will always be action input
+				if (gameEnded) {
+					searchSomeone();
+				} else {
+					robSomeone();
+				}
 
 				break;
 			}

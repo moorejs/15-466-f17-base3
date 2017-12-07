@@ -255,10 +255,11 @@ Server::Server() {
 				case IN_GAME: {
 					// we do this because we only send if a key is down one at a time
 					// so we want to keep track of what keys to use what the last player setVel call
-					float frameUp = false;
-					float frameDown = false;
-					float frameLeft = false;
-					float frameRight = false;
+					bool frameUp = false;
+					bool frameDown = false;
+					bool frameLeft = false;
+					bool frameRight = false;
+					bool frameAction = false;
 
 					for (auto& client : clients) {
 						// read pending messages from clients
@@ -279,9 +280,10 @@ Server::Server() {
 										frameDown = frameDown || out->payload[1] == Control::DOWN;
 										frameLeft = frameLeft || out->payload[1] == Control::LEFT;
 										frameRight = frameRight || out->payload[1] == Control::RIGHT;
+										frameAction = frameAction || out->payload[1] == Control::ACTION;
 
 										DEBUG_PRINT("up " << frameUp << " down " << frameDown << " left" << frameLeft << " right"
-																			<< frameRight);
+																			<< frameRight << " action " << frameAction);
 									}
 
 									break;
@@ -322,6 +324,12 @@ Server::Server() {
 					} else {
 						gameState.robber->setVel(frameUp, frameDown, frameLeft, frameRight);
 						gameState.robber->move(dt, &Data::collisionFramework);
+					}
+
+					if (frameAction) {	// either from robber or cop, so always send
+						for (auto& client : clients) {
+							client->sock.writeQueue.enqueue(Packet::pack(MessageType::INPUT));
+						}
 					}
 
 					// write state updates

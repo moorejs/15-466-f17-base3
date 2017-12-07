@@ -87,6 +87,7 @@ class ButtonGroup {
 			x += fullWidth + padding;
 		}
 
+		setSelected(0);
 		firePrev = [&](int selected) -> int {
 			if (selected == 0) {
 				return buttons.size() - 1;
@@ -105,6 +106,8 @@ class ButtonGroup {
 			button->pos = {0.0f, y};
 			y += height + padding;
 		}
+
+		setSelected(0);
 		firePrev = [&](int selected) -> int {
 			if (selected == 0) {
 				return buttons.size() - 1;

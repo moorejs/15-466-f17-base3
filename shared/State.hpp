@@ -36,6 +36,7 @@ enum Control : uint8_t {
 	DOWN,
 	LEFT,
 	RIGHT,
+	ACTION,
 };
 
 enum MessageType : uint8_t {
