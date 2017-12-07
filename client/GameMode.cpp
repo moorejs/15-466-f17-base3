@@ -309,9 +309,11 @@ void robSomeone() {
 
 	if (closestPerson && minDistance < 0.4f) {
 		closestPerson->rob();
+		closestPerson->animationFrameIdx = 0;
 		later(2000, [closestPerson]() {
 			closestPerson->scale = Person::BASE_SCALE;
 			closestPerson->robbed = false;
+			closestPerson->animationFrameIdx = 0;
 		});
 	}
 }
@@ -800,7 +802,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 		// animation setup
 		std::vector<glm::mat4x3> bone_to_world(animation->bones.size());	// needed for hierarchy
 		std::vector<glm::mat4x3> bind_to_world(animation->bones.size());	// actual uniforms
-		auto const& anim = animation->lookup("walking");									// only one animation currently
+		auto const& walking_anim = animation->lookup("walking");
+		auto const& robbed_anim = animation->lookup("robbed");
 
 		glUseProgram(animation_program->program);
 		glUniform3fv(animation_program_people_colors, NUM_PLAYER_CLASSES, (GLfloat*)Person::PeopleColors);
@@ -832,7 +835,10 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			glUniform1i(animation_program_index, person->playerClass);
 
 			// Animation Stuff
-			BoneAnimation::PoseBone const* frame = animation->get_frame(anim.begin + person->animationFrameIdx);
+			BoneAnimation::PoseBone const* frame;
+            if(person->robbed){
+				frame = animation->get_frame(robbed_anim.begin + person->animationFrameIdx);
+			}else frame = animation->get_frame(walking_anim.begin + person->animationFrameIdx);
 			for (uint32_t b = 0; b < animation->bones.size(); ++b) {
 				BoneAnimation::PoseBone const& pose_bone = frame[b];
 				BoneAnimation::Bone const& bone = animation->bones[b];
