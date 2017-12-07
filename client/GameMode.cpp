@@ -947,6 +947,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	}
 
 	if (isTestimonyShowing) {
+        std::cout << (Person::colorNames[player.playerClass]);
 		drawWord("ANONYMOUS TIP", 0, 0, 1.0f);
 		drawWord("SUSPICIOUS PERSON " + testimony_text + " REPORTED", 0, -0.5, 1.0f);
 	}
