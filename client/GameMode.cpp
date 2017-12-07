@@ -382,11 +382,11 @@ GameMode::GameMode() {
 	Button* btn;
 	glm::vec3 color = {0.1f, 0.6f, 0.1f};
 
-	btn = copButtons.add("SNAPSHOT", color);
+	btn = copButtons.add("FREEZE", color);
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::SNAPSHOT})); };
 
-	btn = copButtons.add("ANON TIP", color);
+	btn = copButtons.add("TIP", color);
 	btn->isEnabled = isEnabled;
 	btn->onFire = [&]() { sock->writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {Power::ANON_TIP})); };
 
@@ -914,8 +914,8 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 			if (word[i] != ' ') {
 				float s = fontSize * 0.1f * (1.0f / 3.0f);
 				glm::mat4 mvp = projection * glm::mat4(glm::vec4(s, 0.0f, 0.0f, 0.0f), glm::vec4(0.0f, s, 0.0f, 0.0f),
-																							 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
-																							 glm::vec4(2 * init_x + s * x, 2 * y + 0.1, 0.0f, 1.0f));
+												 glm::vec4(0.0f, 0.0f, 1.0f, 0.0f),
+												 glm::vec4(2 * init_x + s * x, 2 * y + 0.1, 0.0f, 1.0f));
 				glUniformMatrix4fv(menuProgramMVP, 1, GL_FALSE, glm::value_ptr(mvp));
 				glUniform3f(menuProgramColor, color.r, color.g, color.b);
 
@@ -960,7 +960,7 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 	}
 
 	if (isTestimonyShowing) {
-		drawWord("ANONYMOUS TIP", 0, 0, 1.0f);
+		drawWord("TIP", 0, 0, 1.0f);
 		drawWord("SUSPECT IS " + Person::colorNames[player.playerClass], 0, -0.5, 1.0f);
 	}
 
