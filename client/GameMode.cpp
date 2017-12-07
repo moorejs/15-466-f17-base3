@@ -503,10 +503,11 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 		static constexpr int altRight = SDL_SCANCODE_RIGHT;
 		static constexpr int altAction = SDL_SCANCODE_RSHIFT;
 
+		/*
 		if (e.key.keysym.sym == SDLK_TAB)
 			camera.radius++;
 		else if (e.key.keysym.sym == SDLK_LSHIFT)
-			camera.radius--;
+			camera.radius--;*/
 
 		if (!staging->settings.localMultiplayer) {
 			switch (e.key.keysym.scancode) {
