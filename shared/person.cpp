@@ -9,8 +9,11 @@ const glm::vec3 Person::BASE_SCALE = glm::vec3(0.12f);
 int Person::ANIMATION_FRAMES = 160;	// animation->frame_bones.size() / animation->bones.size()
 
 std::vector<Person*> Person::people = std::vector<Person*>();
-glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3(1,0,0),glm::vec3(0,1,0),glm::vec3(0,0,1),glm::vec3(1,1,0),glm::vec3(1,0,1),glm::vec3(0,1,1),glm::vec3(1,1,1),glm::vec3(0,0,0),glm::vec3(1,0.5,0),glm::vec3(1,0.75,0.75)};
-std::string Person::colorNames[NUM_PLAYER_CLASSES] = {"RED","GREEN","BLUE","YELLOW","PURPLE","CYAN","WHITE","BLACK","ORANGE","PINK"};
+glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {
+		glm::vec3(1, 0, 0), glm::vec3(0, 1, 0), glm::vec3(0, 0, 1), glm::vec3(1, 1, 0),		glm::vec3(1, 0, 1),
+		glm::vec3(0, 1, 1), glm::vec3(1, 1, 1), glm::vec3(0, 0, 0), glm::vec3(1, 0.5, 0), glm::vec3(1, 0.75, 0.75)};
+std::string Person::colorNames[NUM_PLAYER_CLASSES] = {"RED",	"GREEN", "BLUE",	"YELLOW", "PURPLE",
+																											"CYAN", "WHITE", "BLACK", "ORANGE", "PINK"};
 std::function<float()> Person::random;
 // GLint Person::personIdx = -1;
 // GLint Person::colors = -1;
@@ -70,18 +73,20 @@ void Person::setVel(bool up, bool down, bool left, bool right) {
 }
 
 void Person::move(float eps, Collision* col) {
-	if (isMoving) {
+	if (isMoving || robbed) {
 		Hit hit;
 		glm::vec2 newpt = glm::vec2(pos.x + vel.x * eps, pos.y + vel.y * eps);
 		if (col && (hit = col->checkHit(newpt)).hit) {
-			vel = isAI ? randVel() : glm::vec3();
+			if (!robbed)
+				vel = isAI ? randVel() : glm::vec3();
 			animationFrameIdx = 0;
 		} else {
-			pos += vel * eps;
+			if (!robbed)
+				pos += vel * eps;
 			animationFrameIdx = (animationFrameIdx + 2) % ANIMATION_FRAMES;
 		}
 
-		if (glm::length(vel) > 0.1) {
+		if (!robbed && glm::length(vel) > 0.1) {
 			float angle = atan2(vel.x, -vel.y);
 			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) /* *
 													 glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0))*/);
@@ -92,11 +97,13 @@ void Person::move(float eps, Collision* col) {
 				}
 			}
 		}
-		movingFrames++;
+		if (!robbed)
+			movingFrames++;
 	}
 }
 
 void Person::rob() {
 	robbed = true;
+	isMoving = false;
 	// TODO: take away money
 }

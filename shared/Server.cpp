@@ -341,44 +341,40 @@ Server::Server() {
 					// write state updates
 					if (gameState.ended) {
 						for (auto& client : clients) {
-							if (client.get() == stagingState.robber) {
-								// TODO: only send on player move (delta compression)
+							// TODO: only send on player move (delta compression)
 
-								// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
-								uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.cop->vel.x);
-								uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.cop->vel.y);
+							// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
+							uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.cop->vel.x);
+							uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.cop->vel.y);
 
-								if (gameState.frames % 3 == 0) {
-									uint8_t* px = reinterpret_cast<uint8_t*>(&gameState.cop->pos.x);
-									uint8_t* py = reinterpret_cast<uint8_t*>(&gameState.cop->pos.y);
+							if (gameState.frames % 3 == 0) {
+								uint8_t* px = reinterpret_cast<uint8_t*>(&gameState.cop->pos.x);
+								uint8_t* py = reinterpret_cast<uint8_t*>(&gameState.cop->pos.y);
 
-									client->sock.writeQueue.enqueue(Packet::pack(
-											MessageType::GAME_COP_POS, {0, px[0], px[1], px[2], px[3], py[0], py[1], py[2], py[3]}));
-								} else {
-									client->sock.writeQueue.enqueue(
-											Packet::pack(MessageType::GAME_COP_POS, {1, x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
-								}
+								client->sock.writeQueue.enqueue(Packet::pack(
+										MessageType::GAME_COP_POS, {0, px[0], px[1], px[2], px[3], py[0], py[1], py[2], py[3]}));
+							} else {
+								client->sock.writeQueue.enqueue(
+										Packet::pack(MessageType::GAME_COP_POS, {1, x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
 							}
 						}
 					} else {
 						uint8_t* x = reinterpret_cast<uint8_t*>(&gameState.robber->vel.x);
 						uint8_t* y = reinterpret_cast<uint8_t*>(&gameState.robber->vel.y);
 						for (auto& client : clients) {
-							if (client.get() != stagingState.robber) {
-								// TODO: only send on player move (delta compression)
+							// TODO: only send on player move (delta compression)
 
-								// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
+							// TODO: send floats in a more legit way, this has endianness problems (maybe just add htonl() before)
 
-								if (gameState.frames % 3 == 0) {
-									uint8_t* px = reinterpret_cast<uint8_t*>(&gameState.robber->pos.x);
-									uint8_t* py = reinterpret_cast<uint8_t*>(&gameState.robber->pos.y);
+							if (gameState.frames % 3 == 0) {
+								uint8_t* px = reinterpret_cast<uint8_t*>(&gameState.robber->pos.x);
+								uint8_t* py = reinterpret_cast<uint8_t*>(&gameState.robber->pos.y);
 
-									client->sock.writeQueue.enqueue(Packet::pack(
-											MessageType::GAME_ROBBER_POS, {0, px[0], px[1], px[2], px[3], py[0], py[1], py[2], py[3]}));
-								} else {
-									client->sock.writeQueue.enqueue(
-											Packet::pack(MessageType::GAME_ROBBER_POS, {1, x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
-								}
+								client->sock.writeQueue.enqueue(Packet::pack(
+										MessageType::GAME_ROBBER_POS, {0, px[0], px[1], px[2], px[3], py[0], py[1], py[2], py[3]}));
+							} else {
+								client->sock.writeQueue.enqueue(
+										Packet::pack(MessageType::GAME_ROBBER_POS, {1, x[0], x[1], x[2], x[3], y[0], y[1], y[2], y[3]}));
 							}
 						}
 					}

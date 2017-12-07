@@ -313,6 +313,7 @@ void robSomeone() {
 		later(2000, [closestPerson]() {
 			closestPerson->scale = Person::BASE_SCALE;
 			closestPerson->robbed = false;
+			closestPerson->isMoving = true;
 			closestPerson->animationFrameIdx = 0;
 		});
 	}
