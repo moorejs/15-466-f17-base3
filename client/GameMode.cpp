@@ -758,7 +758,6 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	scene.render();
 
-	static bool colorsNotInit = true;
 
 	// static MeshBuffer::Mesh const& mesh = meshes->lookup("lowman_shoes.001");
 
@@ -774,13 +773,14 @@ void GameMode::draw(glm::uvec2 const& drawable_size) {
 
 	glm::mat4 world_to_camera = scene.camera.transform.make_world_to_local();
 	glm::mat4 world_to_clip = scene.camera.make_projection() * world_to_camera;
+	//static bool colorsNotInit = true;
 	static auto renderAll = [&](std::list<Scene::Light> lights, Person player, Person cop) {
-		if (colorsNotInit) {
+		/*if (colorsNotInit) {
 			for (int i = 0; i < NUM_PLAYER_CLASSES; i++) {
 				Person::PeopleColors[i] = glm::vec3(Person::random(), Person::random(), Person::random());
 			}
 			colorsNotInit = false;
-		}
+		}*/
 
 		// Get world-space position of all lights:
 		for (auto const& light : lights) {

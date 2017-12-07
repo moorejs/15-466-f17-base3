@@ -8,8 +8,9 @@
 #include <stdlib.h>
 #include <time.h>
 #include <functional>
+#include <string>
 
-#define NUM_PLAYER_CLASSES 10
+#define NUM_PLAYER_CLASSES 10 //NEEDS TO BE 10
 class Person {
  public:
 	static const glm::vec3 BASE_SCALE;
@@ -19,6 +20,7 @@ class Person {
 	static std::function<float()> random;
 	// static GLint personIdx, colors;
 	static glm::vec3 PeopleColors[NUM_PLAYER_CLASSES];
+	static std::string colorNames[NUM_PLAYER_CLASSES];
 
 	/* TODO: fuuuuuture
 	struct Outfit{
