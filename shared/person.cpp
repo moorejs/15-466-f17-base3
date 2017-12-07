@@ -10,7 +10,7 @@ int Person::ANIMATION_FRAMES = 160;	// animation->frame_bones.size() / animation
 
 std::vector<Person*> Person::people = std::vector<Person*>();
 glm::vec3 Person::PeopleColors[NUM_PLAYER_CLASSES] = {glm::vec3(1,0,0),glm::vec3(0,1,0),glm::vec3(0,0,1),glm::vec3(1,1,0),glm::vec3(1,0,1),glm::vec3(0,1,1),glm::vec3(1,1,1),glm::vec3(0,0,0),glm::vec3(1,0.5,0),glm::vec3(1,0.75,0.75)};
-std::string Person::colorNames[NUM_PLAYER_CLASSES] = {"red","green","blue","yellow","purple","cyan","white","black","orange","pink"};
+std::string Person::colorNames[NUM_PLAYER_CLASSES] = {"RED","GREEN","BLUE","YELLOW","PURPLE","CYAN","WHITE","BLACK","ORANGE","PINK"};
 std::function<float()> Person::random;
 // GLint Person::personIdx = -1;
 // GLint Person::colors = -1;
