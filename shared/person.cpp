@@ -40,6 +40,7 @@ void Person::placeInScene(Collision* col) {
 			pos.y = bounds.minPt.y + EPS + (Person::random() - EPS) * (bounds.maxPt.y - bounds.minPt.y);
 		} while (col->checkHit(glm::vec2(pos.x, pos.y)).hit);
 	}
+
 	playerClass = int(Person::random() * NUM_PLAYER_CLASSES);	// give random player class
 }
 
@@ -73,12 +74,13 @@ void Person::move(float eps, Collision* col) {
 
 		if (glm::length(vel) > 0.1) {
 			float angle = atan2(vel.x, -vel.y);
-			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) * rot);
+			rot = glm::normalize(glm::angleAxis(angle, glm::vec3(0, 0, 1)) *
+													 glm::angleAxis(glm::radians(90.f), glm::vec3(1, 0, 0)));
 
 			if (isAI) {
 				time_t curtime;
 				time(&curtime);
-				if (difftime(curtime, savedTime) > 1 && random() > 0.99)
+				if (difftime(curtime, savedTime) > 1 && Person::random() > 0.99)
 					vel = randVel();
 			}
 		}

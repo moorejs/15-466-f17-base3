@@ -282,6 +282,8 @@ void GameMode::reset(std::unique_ptr<StagingMode::StagingState> stagingState) {
 	// bgmusic.play();
 	int numPlayers = 250;
 
+	std::cout << "first random values" << rand() << " " << rand() << " " << rand() << std::endl;
+
 	Person::random = rand;
 	for (int i = 0; i <= numPlayers; i++) {
 		Person* cur;
@@ -330,7 +332,10 @@ Scene::Object* GameMode::addObject(std::string const& name,
 	return &object;
 }
 
+int frames = 0;
 void GameMode::endGame() {
+	std::cout << "Frames since start:" << frames << std::endl;
+
 	if (gameEnded)
 		return;
 	gameEnded = true;
@@ -474,6 +479,7 @@ bool GameMode::handle_event(SDL_Event const& e, glm::uvec2 const& window_size) {
 }
 
 void GameMode::update(float elapsed) {
+	frames += 1;
 	counter += elapsed;
 
 	state.powerTimer += elapsed;
@@ -549,7 +555,11 @@ void GameMode::update(float elapsed) {
 					}
 
 					case Power::DEPLOY: {
-						endGame();
+						short targetFrames = 2 * *reinterpret_cast<short*>(&out->payload[2]);
+
+						std::cout << "ending in " << (targetFrames - frames) << "frames" << std::endl;
+						later((targetFrames - frames) * 1000.0f * 1.0f / 60.0f, [&]() { endGame(); });	// targetFrames)
+
 						break;
 					}
 
@@ -565,7 +575,10 @@ void GameMode::update(float elapsed) {
 			case MessageType::GAME_TIME_OVER: {
 				// TODO: something special that says time is up
 
-				endGame();
+				short targetFrames = 2 * *reinterpret_cast<short*>(&out->payload[1]);
+
+				std::cout << "ending in " << (targetFrames - frames) << "frames" << std::endl;
+				later((targetFrames - frames) * 1000.0f * 1.0f / 60.0f, [&]() { endGame(); });	// targetFrames)
 
 				break;
 			}

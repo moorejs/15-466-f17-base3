@@ -69,8 +69,10 @@ Server::Server() {
 	} stagingState;
 
 	struct GameState {
-		Person* robber;
-		Person* cop;
+		Person* robber = nullptr;
+		Person* cop = nullptr;
+
+		short frames = 30;	// frame count;
 
 		bool ended = false;
 		float gameTimer = 0.0f;
@@ -261,6 +263,8 @@ Server::Server() {
 					bool frameRight = false;
 					bool frameAction = false;
 
+					gameState.frames++;
+
 					for (auto& client : clients) {
 						// read pending messages from clients
 						Packet* out;
@@ -359,7 +363,9 @@ Server::Server() {
 
 					if (gameState.activePower != Power::NONE && gameState.powerTimer <= dt) {
 						for (auto& client : clients) {
-							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower}));
+							uint8_t* frames = reinterpret_cast<uint8_t*>(&gameState.frames);
+							client->sock.writeQueue.enqueue(
+									Packet::pack(MessageType::GAME_ACTIVATE_POWER, {gameState.activePower, frames[0], frames[1]}));
 						}
 
 						if (gameState.activePower == Power::DEPLOY) {
@@ -369,7 +375,8 @@ Server::Server() {
 
 					if (!gameState.ended && gameState.gameTimer >= stagingState.TIME_LIMIT) {
 						for (auto& client : clients) {
-							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_TIME_OVER, {}));
+							uint8_t* frames = reinterpret_cast<uint8_t*>(&gameState.frames);
+							client->sock.writeQueue.enqueue(Packet::pack(MessageType::GAME_TIME_OVER, {frames[0], frames[1]}));
 						}
 						endGame();
 					}

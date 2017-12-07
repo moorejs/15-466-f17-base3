@@ -83,14 +83,6 @@ int main(int argc, char** argv) {
 	}
 #endif
 
-	// Set VSYNC + Late Swap (prevents crazy FPS):
-	if (SDL_GL_SetSwapInterval(-1) != 0) {
-		std::cerr << "NOTE: couldn't set vsync + late swap tearing (" << SDL_GetError() << ")." << std::endl;
-		if (SDL_GL_SetSwapInterval(1) != 0) {
-			std::cerr << "NOTE: couldn't set vsync (" << SDL_GetError() << ")." << std::endl;
-		}
-	}
-
 	// Hide mouse cursor (note: showing can be useful for debugging):
 	// SDL_ShowCursor(SDL_DISABLE);
 
@@ -193,7 +185,12 @@ int main(int argc, char** argv) {
 	};
 	on_resize();
 
+	typedef std::chrono::duration<int, std::ratio<1, 60>> frameDuration;
+	auto delta = frameDuration(1);
+	float dt = 1.0f / 60.0f;
 	while (Mode::current) {
+		auto startTime = std::chrono::steady_clock::now();
+
 		static SDL_Event evt;
 		while (SDL_PollEvent(&evt) == 1) {
 			// handle resizing:
@@ -211,12 +208,7 @@ int main(int argc, char** argv) {
 		if (!Mode::current)
 			break;
 
-		auto current_time = std::chrono::high_resolution_clock::now();
-		static auto previous_time = current_time;
-		float elapsed = std::chrono::duration<float>(current_time - previous_time).count();
-		previous_time = current_time;
-
-		Mode::current->update(elapsed);
+		Mode::current->update(dt);
 		if (!Mode::current)
 			break;
 
@@ -230,6 +222,8 @@ int main(int argc, char** argv) {
 		Mode::current->draw(drawable_size);
 
 		SDL_GL_SwapWindow(window);
+
+		std::this_thread::sleep_until(startTime + delta);
 	}
 
 	//------------  teardown ------------
