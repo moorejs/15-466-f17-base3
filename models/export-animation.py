@@ -21,7 +21,7 @@ infile = args[0]
 outfile = args[1]
 
 object_name = "person"
-action_names = ["walking"]
+action_names = ["walking","robbed"]
 
 bpy.ops.wm.open_mainfile(filepath=infile)
 
