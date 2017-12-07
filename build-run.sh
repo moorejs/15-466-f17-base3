@@ -29,9 +29,9 @@ if build_client && [ $success -eq 0 ] && build_server && [ $success -eq 0 ] ; th
     printf "Starting two clients (one cop, one robber), and a server...\n\n"
 
     cd dist
-    ./client staging cop | sed "s/^/[cop] /" &
-    ./client staging robber | sed "s/^/[robber] /" &
-    ./server  | sed "s/^/[server] /"
+    ./client localhost 9001 300 staging cop | sed "s/^/[cop] /" &
+    ./client localhost 9001 300 staging robber | sed "s/^/[robber] /" &
+    ./server 9001 | sed "s/^/[server] /"
   else
     exit 0
   fi
