@@ -6,6 +6,8 @@
 #include "MeshBuffer.hpp"
 #include "Scene.hpp"
 
+#include "DrawTex.cpp"
+
 #include <cmath>
 #include <functional>
 #include <glm/gtc/type_ptr.hpp>
@@ -53,8 +55,14 @@ Load<GLVertexArray> menuBinding(LoadTagDefault, []() {
 	return ret;
 });
 
+DrawTex drawT;
+
 //----------------------
 MenuMode::MenuMode() {
+    
+    
+    drawT.loadTexture();
+    
 	drawWord = [](const std::string& word, float x, float y, float fontSize) {
 		glUseProgram(menuProgram->program);
 		glBindVertexArray(menuBinding->array);
@@ -147,8 +155,16 @@ void MenuMode::draw(glm::uvec2 const& drawable_size) {
 	for (auto const& choice : choices) {
 		total_height += choice.height + 2.0f * choice.padding;
 	}
-
-	menuButtons.draw();
-
-	drawWord("ODD ONE OUT", 0.0f, 0.6f, 1.0f);
+    
+    
+    menuButtons.draw();
+//    drawWord("ODD ONE OUT", 0.0f, 0.6f, 1.0f);
+    drawT.drawtexture();
+    
+	
+    
+    
+	
+    
+    
 }
